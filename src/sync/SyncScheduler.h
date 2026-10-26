@@ -4,9 +4,12 @@
 #include "sync/SyncService.h"
 
 #include <QList>
+#include <QMetaObject>
 #include <QObject>
 #include <QSet>
 #include <QTimer>
+
+class ConnectivityMonitor;
 
 class SyncScheduler : public QObject
 {
@@ -14,6 +17,10 @@ class SyncScheduler : public QObject
 
 public:
     explicit SyncScheduler(SyncService *sync, QObject *parent = nullptr);
+
+    // Optional. When set, checks are deferred while offline and an immediate
+    // check starts when connectivity returns.
+    void setConnectivityMonitor(ConnectivityMonitor *monitor);
 
     // Returns false for intervals outside 5–1440 minutes.
     bool setIntervalMinutes(int minutes);
@@ -28,6 +35,7 @@ public:
 
     bool isRunning() const { return m_active; }
     bool isCheckRunning() const { return m_checkRunning; }
+    bool isCheckDeferredForOffline() const { return m_offlineDeferred; }
     qint64 lastCheckEpoch() const { return m_lastCheckEpoch; }
     qint64 lastSuccessEpoch() const { return m_lastSuccessEpoch; }
     qint64 nextCheckEpoch() const { return m_nextCheckEpoch; }
@@ -38,18 +46,23 @@ public:
 signals:
     void checkStarted();
     void checkFinished(const QList<SyncResult> &results);
+    void checkDeferred();
     void scheduleChanged();
     void runningChanged();
 
 private slots:
     void runCheck();
     void handleSyncFinished(const SyncResult &result);
+    void handleOnlineChanged(bool online);
 
 private:
     void finishCheck();
     void scheduleNext(qint64 delayMs);
+    void deferForOffline();
 
     SyncService *m_sync;
+    ConnectivityMonitor *m_connectivity = nullptr;
+    QMetaObject::Connection m_connectivityConnection;
     QTimer m_timer;
     QList<SyncAccountRequest> m_accounts;
     QSet<QString> m_pendingAccounts;
@@ -59,6 +72,7 @@ private:
     int m_intervalMinutes = 180;
     bool m_active = false;
     bool m_checkRunning = false;
+    bool m_offlineDeferred = false;
     qint64 m_lastCheckEpoch = 0;
     qint64 m_lastSuccessEpoch = 0;
     qint64 m_nextCheckEpoch = 0;

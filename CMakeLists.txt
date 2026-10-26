@@ -26,6 +26,8 @@ add_library(gmailnotifier_core STATIC
     src/config/OAuthClientConfig.h
     src/config/OAuthClientStore.cpp
     src/config/OAuthClientStore.h
+    src/connectivity/ConnectivityMonitor.cpp
+    src/connectivity/ConnectivityMonitor.h
     src/gmail/GmailClient.cpp
     src/gmail/GmailClient.h
     src/gmail/GmailError.h

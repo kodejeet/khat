@@ -1,5 +1,7 @@
 #include "sync/SyncScheduler.h"
 
+#include "connectivity/ConnectivityMonitor.h"
+
 #include <QDateTime>
 #include <QSet>
 
@@ -36,6 +38,25 @@ bool SyncScheduler::setIntervalMinutes(int minutes)
     return true;
 }
 
+void SyncScheduler::setConnectivityMonitor(ConnectivityMonitor *monitor)
+{
+    if (m_connectivity == monitor) {
+        return;
+    }
+    if (m_connectivityConnection) {
+        disconnect(m_connectivityConnection);
+    }
+    m_connectivity = monitor;
+    if (m_connectivity) {
+        m_connectivityConnection = connect(
+            m_connectivity, &ConnectivityMonitor::onlineChanged, this,
+            &SyncScheduler::handleOnlineChanged);
+        if (!m_connectivity->isOnline()) {
+            deferForOffline();
+        }
+    }
+}
+
 void SyncScheduler::setAccounts(const QList<SyncAccountRequest> &accounts)
 {
     QList<SyncAccountRequest> deduped;
@@ -57,6 +78,7 @@ bool SyncScheduler::start()
     }
     m_active = true;
     m_backoff.reset();
+    m_offlineDeferred = false;
     emit runningChanged();
     runCheck();
     return true;
@@ -66,6 +88,7 @@ void SyncScheduler::stop()
 {
     const bool wasActive = m_active;
     m_active = false;
+    m_offlineDeferred = false;
     m_timer.stop();
     m_nextCheckEpoch = 0;
     if (wasActive) {
@@ -79,9 +102,37 @@ bool SyncScheduler::checkNow()
     if (!m_active || m_checkRunning) {
         return false;
     }
+    if (m_connectivity && !m_connectivity->isOnline()) {
+        m_offlineDeferred = true;
+        emit checkDeferred();
+        return false;
+    }
     m_timer.stop();
     runCheck();
     return true;
+}
+
+void SyncScheduler::handleOnlineChanged(bool online)
+{
+    if (!m_active) {
+        return;
+    }
+    if (!online) {
+        if (m_checkRunning || m_timer.isActive()) {
+            m_offlineDeferred = true;
+        }
+        m_timer.stop();
+        m_nextCheckEpoch = 0;
+        emit scheduleChanged();
+        return;
+    }
+
+    if (m_checkRunning) {
+        return;
+    }
+    m_offlineDeferred = false;
+    m_timer.stop();
+    runCheck();
 }
 
 void SyncScheduler::runCheck()
@@ -89,9 +140,15 @@ void SyncScheduler::runCheck()
     if (!m_active || m_checkRunning || !m_sync) {
         return;
     }
+    if (m_connectivity && !m_connectivity->isOnline()) {
+        emit checkDeferred();
+        deferForOffline();
+        return;
+    }
 
     m_timer.stop();
     m_checkRunning = true;
+    m_offlineDeferred = false;
     m_pendingAccounts.clear();
     m_results.clear();
     m_lastCheckEpoch = QDateTime::currentSecsSinceEpoch();
@@ -166,12 +223,28 @@ void SyncScheduler::finishCheck()
         m_backoff.reset();
         m_lastSuccessEpoch = QDateTime::currentSecsSinceEpoch();
         m_lastError.clear();
-        scheduleNext(static_cast<qint64>(m_intervalMinutes) * kMinuteMs);
+        if (m_connectivity && !m_connectivity->isOnline()) {
+            deferForOffline();
+        } else {
+            scheduleNext(static_cast<qint64>(m_intervalMinutes) * kMinuteMs);
+        }
     } else {
-        scheduleNext(m_backoff.nextDelayMs(retryAfter));
+        if (m_connectivity && !m_connectivity->isOnline()) {
+            deferForOffline();
+        } else {
+            scheduleNext(m_backoff.nextDelayMs(retryAfter));
+        }
     }
 
     emit checkFinished(m_lastResults);
+}
+
+void SyncScheduler::deferForOffline()
+{
+    m_offlineDeferred = m_active;
+    m_timer.stop();
+    m_nextCheckEpoch = 0;
+    emit scheduleChanged();
 }
 
 void SyncScheduler::scheduleNext(qint64 delayMs)
@@ -179,6 +252,10 @@ void SyncScheduler::scheduleNext(qint64 delayMs)
     if (!m_active) {
         m_nextCheckEpoch = 0;
         emit scheduleChanged();
+        return;
+    }
+    if (m_connectivity && !m_connectivity->isOnline()) {
+        deferForOffline();
         return;
     }
     delayMs = qBound<qint64>(1000, delayMs, 2'147'483'647LL);
