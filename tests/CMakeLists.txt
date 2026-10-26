@@ -1,1 +1,10 @@
-# Tests are added here as features land.
+function(add_gmailnotifier_test name source)
+    qt_add_executable(${name} ${source})
+    target_link_libraries(${name} PRIVATE gmailnotifier_core Qt6::Test)
+    add_test(NAME ${name} COMMAND ${name})
+    set_tests_properties(${name} PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    )
+endfunction()
+
+add_gmailnotifier_test(test-config test_config.cpp)
