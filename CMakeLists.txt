@@ -115,7 +115,7 @@ install(FILES ${GMAIL_NOTIFIER_DATA_DIR}/gmail-notifier.desktop
     DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
 )
 install(FILES ${GMAIL_NOTIFIER_DATA_DIR}/gmail-notifier.service
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/systemd/user
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/systemd/user
 )
 
 if(BUILD_TESTING)
