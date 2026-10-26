@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=Gmail Notifier
+GenericName=Gmail Notification Settings
+Comment=Native notifications for new Gmail inbox messages
+Exec=@CMAKE_INSTALL_FULL_BINDIR@/gmail-notifier --settings
+TryExec=@CMAKE_INSTALL_FULL_BINDIR@/gmail-notifier
+Icon=mail-unread
+Terminal=false
+Categories=Network;Email;
+Keywords=Gmail;Email;Notifications;
+StartupNotify=true
+StartupWMClass=gmail-notifier
+X-GNOME-UsesNotifications=true

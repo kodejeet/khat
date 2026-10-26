@@ -7,8 +7,11 @@ freedesktop notification service.
 
 ## Status
 
-Scaffold only. Implementation is proceeding incrementally; see `PROGRESS.md`
-for completed, tested, pending, and blocked work.
+The background application, Gmail synchronization, native notifications,
+single-instance command socket, suspend/resume handling, and minimal settings
+window are implemented. OAuth authorization and secure token storage are not
+implemented yet, so the notifier currently starts idle and never contacts Gmail.
+See `PROGRESS.md` for tested, pending, and blocked work.
 
 ## Requirements
 
@@ -27,11 +30,23 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-Run the scaffold:
+## Run
 
 ```sh
-QT_QPA_PLATFORM=offscreen ./build/gmail-notifier --version
+# Open the settings window (the window can be closed; polling continues)
+./build/gmail-notifier --settings
+
+# Run without a window, as used by the systemd user service
+./build/gmail-notifier --background
+
+# Ask a running instance for an immediate check
+./build/gmail-notifier --check-now
 ```
+
+Only one notifier instance runs at a time. A second launch talks to the existing
+process through a private socket in the user runtime directory. Account
+authorization is not available yet, so manual checks report that no authorized
+accounts exist.
 
 ## Security
 

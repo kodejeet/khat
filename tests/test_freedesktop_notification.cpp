@@ -146,6 +146,8 @@ void TestFreedesktopNotification::sendsNotificationAndOpensOnDefaultAction()
     QCOMPARE(received.hints.value(QStringLiteral("urgency")).toInt(), 1);
     QCOMPARE(received.hints.value(QStringLiteral("category")).toString(),
              QStringLiteral("email"));
+    QCOMPARE(received.hints.value(QStringLiteral("desktop-entry")).toString(),
+             QStringLiteral("gmail-notifier"));
     QCOMPARE(received.timeout, -1);
 
     QTRY_COMPARE_WITH_TIMEOUT(sent.count(), 1, 5000);

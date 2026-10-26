@@ -1,0 +1,14 @@
+[Unit]
+Description=Gmail Notifier
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/gmail-notifier --background
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=10s
+
+[Install]
+WantedBy=graphical-session.target

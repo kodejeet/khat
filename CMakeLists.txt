@@ -14,6 +14,15 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Network Sql Widgets DBus)
 qt_standard_project_setup()
 
 add_library(gmailnotifier_core STATIC
+    src/app/AppController.cpp
+    src/app/AppController.h
+    src/app/PowerMonitor.cpp
+    src/app/PowerMonitor.h
+    src/app/SingleInstance.cpp
+    src/app/SingleInstance.h
+    src/app/UnixSignalHandler.cpp
+    src/app/UnixSignalHandler.h
+    src/auth/AccessTokenProvider.h
     src/config/AppConfig.cpp
     src/config/AppConfig.h
     src/config/AppPaths.cpp
@@ -88,6 +97,25 @@ target_link_libraries(gmail-notifier PRIVATE
 
 install(TARGETS gmail-notifier
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+set(GMAIL_NOTIFIER_DATA_DIR ${CMAKE_CURRENT_BINARY_DIR}/data)
+configure_file(
+    data/gmail-notifier.desktop.in
+    ${GMAIL_NOTIFIER_DATA_DIR}/gmail-notifier.desktop
+    @ONLY
+)
+configure_file(
+    data/gmail-notifier.service.in
+    ${GMAIL_NOTIFIER_DATA_DIR}/gmail-notifier.service
+    @ONLY
+)
+
+install(FILES ${GMAIL_NOTIFIER_DATA_DIR}/gmail-notifier.desktop
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
+)
+install(FILES ${GMAIL_NOTIFIER_DATA_DIR}/gmail-notifier.service
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/systemd/user
 )
 
 if(BUILD_TESTING)

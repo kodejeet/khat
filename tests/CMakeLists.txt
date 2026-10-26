@@ -16,6 +16,9 @@ add_gmailnotifier_test(test-scheduler test_scheduler.cpp)
 add_gmailnotifier_test(test-connectivity test_connectivity.cpp)
 add_gmailnotifier_test(test-notifications test_notifications.cpp)
 add_gmailnotifier_test(test-settings-window test_settings_window.cpp)
+add_gmailnotifier_test(test-app-controller test_app_controller.cpp)
+add_gmailnotifier_test(test-single-instance test_single_instance.cpp)
+add_gmailnotifier_test(test-unix-signal test_unix_signal.cpp)
 
 find_program(DBUS_RUN_SESSION dbus-run-session)
 if(DBUS_RUN_SESSION)
@@ -26,6 +29,14 @@ if(DBUS_RUN_SESSION)
     set_tests_properties(test-freedesktop-notification PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen;GMAIL_NOTIFIER_TEST_PRIVATE_BUS=1"
     )
+
+    qt_add_executable(test-power-monitor test_power_monitor.cpp)
+    target_link_libraries(test-power-monitor PRIVATE gmailnotifier_core Qt6::Test)
+    add_test(NAME test-power-monitor
+        COMMAND ${DBUS_RUN_SESSION} -- $<TARGET_FILE:test-power-monitor>)
+    set_tests_properties(test-power-monitor PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;GMAIL_NOTIFIER_TEST_PRIVATE_BUS=1"
+    )
 else()
-    message(STATUS "dbus-run-session not found; skipping test-freedesktop-notification")
+    message(STATUS "dbus-run-session not found; skipping D-Bus tests")
 endif()
