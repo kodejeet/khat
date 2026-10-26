@@ -22,6 +22,7 @@ class TestSettingsWindow : public QObject
 private slots:
     void notificationsPersist();
     void accountSignalsAndRemoval();
+    void authorizationBusyAndMessages();
     void statusReflectsSchedulerAndConnectivity();
 };
 
@@ -189,6 +190,60 @@ void TestSettingsWindow::accountSignalsAndRemoval()
     QCOMPARE(states.size(), 1);
     QCOMPARE(states.first().accountId, QStringLiteral("acct-two"));
     QCOMPARE(tree->topLevelItemCount(), 1);
+}
+
+void TestSettingsWindow::authorizationBusyAndMessages()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    ConfigStore store(dir.filePath(QStringLiteral("config.json")));
+    QString error;
+    QVERIFY2(store.load(&error), qPrintable(error));
+
+    AppConfig config = defaultAppConfig();
+    config.accounts = {
+        AccountConfig{QStringLiteral("acct-one"), QStringLiteral("user@example.com"),
+                      QString(), true},
+    };
+    QVERIFY2(store.save(config, &error), qPrintable(error));
+
+    StateDatabase db(dir.filePath(QStringLiteral("state.db")));
+    QVERIFY2(openDatabase(db), "cannot open state database");
+
+    SettingsWindow window(&store, &db);
+    auto *add = window.findChild<QPushButton *>(QStringLiteral("addAccountButton"));
+    auto *reauth = window.findChild<QPushButton *>(QStringLiteral("reauthorizeButton"));
+    auto *remove = window.findChild<QPushButton *>(QStringLiteral("removeAccountButton"));
+    auto *message = window.findChild<QLabel *>(QStringLiteral("accountMessage"));
+    QVERIFY(add);
+    QVERIFY(reauth);
+    QVERIFY(remove);
+    QVERIFY(message);
+
+    QVERIFY(add->isEnabled());
+    QVERIFY(reauth->isEnabled());
+    QVERIFY(remove->isEnabled());
+    QVERIFY(message->isHidden());
+
+    window.setAuthorizationBusy(true);
+    QVERIFY(!add->isEnabled());
+    QCOMPARE(add->text(), QStringLiteral("Authorizing..."));
+    QVERIFY(!reauth->isEnabled());
+    QVERIFY(!remove->isEnabled());
+
+    window.setAccountMessage(QStringLiteral("Waiting for Google authorization."));
+    QCOMPARE(message->text(), QStringLiteral("Waiting for Google authorization."));
+    QVERIFY(!message->isHidden());
+    QVERIFY(!message->font().bold());
+
+    window.setAuthorizationBusy(false);
+    QVERIFY(add->isEnabled());
+    QCOMPARE(add->text(), QStringLiteral("Add Account..."));
+    QVERIFY(reauth->isEnabled());
+    QVERIFY(remove->isEnabled());
+
+    window.setAccountMessage(QStringLiteral("Authorization failed."), true);
+    QVERIFY(message->font().bold());
 }
 
 void TestSettingsWindow::statusReflectsSchedulerAndConnectivity()

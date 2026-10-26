@@ -553,7 +553,6 @@ void OAuthManager::handleTokenLoaded(const QString &accountId, bool found,
     m_loadingTokens.remove(accountId);
     const bool awaitingRemoval = m_removalLoadPending.remove(accountId);
     m_initialLoadPending.remove(accountId);
-    maybeFinishInitialTokenLoad();
 
     if (awaitingRemoval) {
         if (found && error.isEmpty()) {
@@ -561,26 +560,33 @@ void OAuthManager::handleTokenLoaded(const QString &accountId, bool found,
         } else {
             deleteStoredToken(accountId, error.isEmpty() ? QString() : safeError(error));
         }
+        maybeFinishInitialTokenLoad();
         return;
     }
 
     if (!findAccountById(accountId)) {
+        maybeFinishInitialTokenLoad();
         return;
     }
     if (!error.isEmpty()) {
         emit tokenError(accountId, safeError(error));
+        maybeFinishInitialTokenLoad();
         return;
     }
     if (!found) {
         m_tokens.remove(accountId);
         m_needsReauthorization.remove(accountId);
         emit tokenCacheChanged();
+        maybeFinishInitialTokenLoad();
         return;
     }
 
     m_tokens.insert(accountId, token);
     m_needsReauthorization.remove(accountId);
     emit tokenCacheChanged();
+    // Cached tokens must be visible before the application treats initial
+    // loading as complete and starts polling.
+    maybeFinishInitialTokenLoad();
 }
 
 void OAuthManager::handleTokenSaved(const QString &accountId, const QString &error)

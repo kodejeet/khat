@@ -2,12 +2,15 @@
 
 #include "app/PowerMonitor.h"
 #include "auth/AccessTokenProvider.h"
+#include "auth/OAuthManager.h"
+#include "auth/SecretServiceTokenStore.h"
 #include "notify/FreedesktopNotificationBackend.h"
 #include "notify/NotificationBackend.h"
 #include "notify/NotificationDispatcher.h"
 #include "notify/NotificationService.h"
 #include "ui/SettingsWindow.h"
 
+#include <QDateTime>
 #include <QDebug>
 
 #include <utility>
@@ -34,17 +37,27 @@ bool sameAccountRequests(const QList<SyncAccountRequest> &left,
 AppController::AppController(
     AppControllerOptions options,
     std::shared_ptr<AccessTokenProvider> tokenProvider,
+    std::shared_ptr<OAuthManager> oauthManager,
     QObject *parent)
     : QObject(parent)
     , m_options(std::move(options))
     , m_config(m_options.paths.configFile)
     , m_state(m_options.paths.stateFile)
     , m_sync(&m_state, &m_network)
+    , m_oauthManager(std::move(oauthManager))
     , m_tokenProvider(std::move(tokenProvider))
     , m_scheduler(&m_sync)
 {
     if (!m_tokenProvider) {
-        m_tokenProvider = std::make_shared<EmptyAccessTokenProvider>();
+        if (!m_oauthManager) {
+            m_oauthManager = std::make_shared<OAuthManager>(
+                std::make_unique<SecretServiceTokenStore>(), &m_network);
+            m_oauthManager->setOAuthClientPath(m_options.paths.oauthClientFile);
+        }
+        m_oauthManager->setGmailApiBaseUrl(m_options.gmailApiBaseUrl);
+        m_tokenProvider = m_oauthManager;
+    } else {
+        m_oauthManager.reset();
     }
 
     m_notificationBackend = std::make_unique<FreedesktopNotificationBackend>();
@@ -126,19 +139,19 @@ bool AppController::initialize(QString *error)
         }
     });
 
+    setupOAuth();
     setupSleepMonitoring();
 
     m_initialized = true;
     applyConfiguration(m_config.config());
 
-    if (m_accountRequests.isEmpty() && m_accountsAwaitingAuthorization > 0) {
-        qInfo().noquote()
-            << "Accounts are configured but not authorized; background checks are idle.";
-    } else if (m_accountRequests.isEmpty() && m_config.config().accounts.isEmpty()) {
-        qInfo().noquote() << "No accounts are configured; background checks are idle.";
-    } else if (m_accountRequests.isEmpty()) {
-        qInfo().noquote()
-            << "No enabled accounts are authorized; background checks are idle.";
+    if (m_oauthManager) {
+        // Do not start polling until every configured account's stored token
+        // has had a chance to load from Secret Service.
+        m_oauthInitialLoadPending = true;
+        m_oauthManager->loadTokens();
+    } else {
+        logAccountState();
     }
     return true;
 }
@@ -179,8 +192,269 @@ void AppController::setupSleepMonitoring()
     }
 }
 
+void AppController::setupOAuth()
+{
+    if (!m_oauthManager || m_oauthConnected) {
+        return;
+    }
+    m_oauthConnected = true;
+    OAuthManager *manager = m_oauthManager.get();
+
+    connect(manager, &OAuthManager::initialTokenLoadFinished, this, [this] {
+        if (!m_oauthInitialLoadPending) {
+            return;
+        }
+        m_oauthInitialLoadPending = false;
+        applyConfiguration(m_config.config());
+        logAccountState();
+    });
+    connect(manager, &OAuthManager::tokenCacheChanged, this, [this] {
+        if (m_initialized && !m_oauthInitialLoadPending) {
+            applyConfiguration(m_config.config());
+        }
+    });
+    connect(manager, &OAuthManager::tokenError, this,
+            [this](const QString &accountId, const QString &error) {
+                const QString label = emailForAccount(accountId);
+                qWarning().noquote()
+                    << "Could not load the saved Google authorization for"
+                    << (label.isEmpty() ? accountId : label) << ":" << error;
+                showAccountMessage(
+                    QStringLiteral("Could not load the saved Google authorization for %1: %2")
+                        .arg(label.isEmpty() ? accountId : label, error),
+                    true);
+            });
+    connect(manager, &OAuthManager::authorizationStarted, this, [this] {
+        showAccountMessage(
+            QStringLiteral("Waiting for Google authorization in your browser..."));
+    });
+    connect(manager, &OAuthManager::authorizationBusyChanged, this, [this](bool busy) {
+        if (m_settingsWindow) {
+            m_settingsWindow->setAuthorizationBusy(busy);
+        }
+    });
+    connect(manager, &OAuthManager::authorizationFinished, this,
+            &AppController::handleAuthorizationFinished);
+    connect(manager, &OAuthManager::authorizationFailed, this,
+            &AppController::handleAuthorizationFailed);
+    connect(manager, &OAuthManager::authorizationRequired, this,
+            &AppController::handleAuthorizationRequired);
+    connect(manager, &OAuthManager::tokenRefreshFailed, this,
+            [this](const QString &accountId, const QString &error) {
+                const QString label = emailForAccount(accountId);
+                qWarning().noquote() << "Could not refresh Google authorization for"
+                                     << (label.isEmpty() ? accountId : label) << ":"
+                                     << error;
+                showAccountMessage(
+                    QStringLiteral("Could not refresh Google authorization for %1: %2. "
+                                   "The next check will retry.")
+                        .arg(label.isEmpty() ? accountId : label, error),
+                    true);
+            });
+    connect(manager, &OAuthManager::tokenStorageError, this,
+            [this](const QString &accountId, const QString &error) {
+                const QString label = emailForAccount(accountId);
+                qWarning().noquote() << "Secure token storage error for"
+                                     << (label.isEmpty() ? accountId : label) << ":"
+                                     << error;
+                showAccountMessage(
+                    QStringLiteral("Secure token storage reported an error for %1: %2")
+                        .arg(label.isEmpty() ? accountId : label, error),
+                    true);
+            });
+    connect(manager, &OAuthManager::tokenRemoved, this,
+            [this](const QString &, const QString &warning) {
+                if (warning.isEmpty()) {
+                    showAccountMessage(QStringLiteral("Stored Google authorization removed."));
+                } else {
+                    qWarning().noquote() << "Token removal warning:" << warning;
+                    showAccountMessage(
+                        QStringLiteral("The local Google authorization was removed. %1")
+                            .arg(warning),
+                        true);
+                }
+                if (m_settingsWindow) {
+                    m_settingsWindow->refresh();
+                }
+            });
+    connect(&m_sync, &SyncService::syncFinished, this,
+            &AppController::handleSyncFinished);
+}
+
+void AppController::logAccountState()
+{
+    if (m_accountRequests.isEmpty() && m_accountsAwaitingAuthorization > 0) {
+        qInfo().noquote()
+            << "Accounts are configured but not authorized; background checks are idle.";
+    } else if (m_accountRequests.isEmpty() && m_config.config().accounts.isEmpty()) {
+        qInfo().noquote() << "No accounts are configured; background checks are idle.";
+    } else if (m_accountRequests.isEmpty()) {
+        qInfo().noquote()
+            << "No enabled accounts are authorized; background checks are idle.";
+    }
+}
+
+void AppController::requestAddAccount()
+{
+    emit addAccountRequested();
+    if (!m_oauthManager) {
+        showAccountMessage(
+            QStringLiteral("Google authorization is not available in this instance."), true);
+        return;
+    }
+    if (m_oauthManager->beginAddAccount()) {
+        showAccountMessage(
+            QStringLiteral("Waiting for Google authorization in your browser..."));
+    }
+}
+
+void AppController::requestReauthorizeAccount(const QString &accountId)
+{
+    emit reauthorizeAccountRequested(accountId);
+    if (!m_oauthManager) {
+        showAccountMessage(
+            QStringLiteral("Google authorization is not available in this instance."), true);
+        return;
+    }
+    if (m_oauthManager->beginReauthorizeAccount(accountId)) {
+        showAccountMessage(
+            QStringLiteral("Waiting for Google authorization in your browser..."));
+    }
+}
+
+void AppController::handleAccountRemoval(const QString &accountId)
+{
+    if (m_oauthManager) {
+        m_oauthManager->setAccounts(m_config.config().accounts);
+        m_oauthManager->removeAccountToken(accountId);
+    }
+    emit accountRemoved(accountId);
+}
+
+void AppController::handleAuthorizationFinished(const QString &accountId,
+                                                const QString &email,
+                                                bool newAccount)
+{
+    Q_UNUSED(newAccount)
+
+    AppConfig config = m_config.config();
+    int existing = -1;
+    for (int i = 0; i < config.accounts.size(); ++i) {
+        if (config.accounts.at(i).id == accountId) {
+            existing = i;
+            break;
+        }
+    }
+    const bool added = existing < 0;
+    if (added) {
+        config.accounts.append(AccountConfig{accountId, email, QString(), true});
+    }
+
+    QString error;
+    if (!m_config.save(config, &error)) {
+        qWarning().noquote() << "Could not save the authorized account:" << error;
+        if (added && m_oauthManager) {
+            // Do not leave a stored token behind when its account could not be
+            // written to the configuration.
+            m_oauthManager->removeAccountToken(accountId);
+        }
+        showAccountMessage(
+            QStringLiteral("Google authorization succeeded, but the account could not be "
+                           "saved: %1")
+                .arg(error),
+            true);
+        return;
+    }
+
+    if (m_oauthManager) {
+        m_oauthManager->setAccounts(config.accounts);
+    }
+    QString stateError;
+    if (!m_state.ensureAccount(accountId, email, &stateError)) {
+        qWarning().noquote() << "Cannot initialize local state for the account:"
+                             << stateError;
+    }
+    applyConfiguration(config);
+    if (m_settingsWindow) {
+        m_settingsWindow->refresh();
+    }
+    if (added) {
+        showAccountMessage(QStringLiteral("Added %1. The first synchronization runs "
+                                          "without notifications.")
+                               .arg(email));
+    } else {
+        showAccountMessage(QStringLiteral("Reauthorized %1.").arg(email));
+    }
+}
+
+void AppController::handleAuthorizationFailed(const QString &error)
+{
+    qWarning().noquote() << "Google authorization failed:" << error;
+    showAccountMessage(QStringLiteral("Google authorization failed: %1").arg(error), true);
+}
+
+void AppController::handleAuthorizationRequired(const QString &accountId,
+                                                const QString &error)
+{
+    const QString label = emailForAccount(accountId);
+    const QString accountLabel = label.isEmpty() ? accountId : label;
+    qWarning().noquote() << "Google authorization requires reauthorization for"
+                         << accountLabel << ":" << error;
+
+    QString stateError;
+    if (!m_state.markSyncError(
+            accountId, QDateTime::currentSecsSinceEpoch(),
+            QStringLiteral("Google authorization expired. Reauthorize the account. %1")
+                .arg(error),
+            &stateError)) {
+        qWarning().noquote() << "Could not record the authorization error:" << stateError;
+    }
+    applyConfiguration(m_config.config());
+    if (m_settingsWindow) {
+        m_settingsWindow->refresh();
+    }
+    showAccountMessage(
+        QStringLiteral("Google authorization for %1 requires reauthorization: %2")
+            .arg(accountLabel, error),
+        true);
+}
+
+void AppController::handleSyncFinished(const SyncResult &result)
+{
+    if (!m_oauthManager || result.errorKind != GmailErrorKind::Unauthorized) {
+        return;
+    }
+    const QString label = emailForAccount(result.accountId);
+    qInfo().noquote() << "Gmail rejected the access token for"
+                      << (label.isEmpty() ? result.accountId : label)
+                      << "; attempting a token refresh.";
+    m_oauthManager->refreshAccessToken(result.accountId);
+}
+
+void AppController::showAccountMessage(const QString &message, bool error)
+{
+    m_accountMessage = message;
+    m_accountMessageIsError = error;
+    if (m_settingsWindow) {
+        m_settingsWindow->setAccountMessage(message, error);
+    }
+}
+
+QString AppController::emailForAccount(const QString &accountId) const
+{
+    for (const AccountConfig &account : m_config.config().accounts) {
+        if (account.id == accountId) {
+            return account.email;
+        }
+    }
+    return QString();
+}
+
 void AppController::applyConfiguration(const AppConfig &config)
 {
+    if (m_oauthManager) {
+        m_oauthManager->setAccounts(config.accounts);
+    }
     m_dispatcher->setConfig(config.notifications);
     if (!m_scheduler.setIntervalMinutes(config.notifications.pollIntervalMinutes)) {
         qWarning().noquote() << "Ignoring an invalid polling interval.";
@@ -290,6 +564,10 @@ bool AppController::checkNow(QString *message)
         setMessage(QStringLiteral("The session is suspended."));
         return false;
     }
+    if (m_oauthInitialLoadPending) {
+        setMessage(QStringLiteral("Saved Google authorizations are still loading."));
+        return false;
+    }
     if (m_accountRequests.isEmpty()) {
         setMessage(QStringLiteral("No authorized accounts are available. Add or "
                                   "reauthorize an account first."));
@@ -337,13 +615,19 @@ bool AppController::showSettings()
                     applyConfiguration(config);
                 });
         connect(m_settingsWindow, &SettingsWindow::addAccountRequested, this,
-                &AppController::addAccountRequested);
+                &AppController::requestAddAccount);
         connect(m_settingsWindow, &SettingsWindow::reauthorizeAccountRequested, this,
-                &AppController::reauthorizeAccountRequested);
+                &AppController::requestReauthorizeAccount);
         connect(m_settingsWindow, &SettingsWindow::accountRemoved, this,
-                &AppController::accountRemoved);
+                &AppController::handleAccountRemoval);
     }
 
+    if (m_oauthManager) {
+        m_settingsWindow->setAuthorizationBusy(m_oauthManager->isAuthorizing());
+    }
+    if (!m_accountMessage.isEmpty()) {
+        m_settingsWindow->setAccountMessage(m_accountMessage, m_accountMessageIsError);
+    }
     m_settingsWindow->refresh();
     if (m_settingsWindow->isMinimized()) {
         m_settingsWindow->showNormal();

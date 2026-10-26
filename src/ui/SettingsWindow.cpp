@@ -7,6 +7,7 @@
 
 #include <QCheckBox>
 #include <QDateTime>
+#include <QFont>
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QHash>
@@ -276,6 +277,31 @@ void SettingsWindow::setRemovalConfirmation(
     m_confirmRemoval = std::move(handler);
 }
 
+void SettingsWindow::setAuthorizationBusy(bool busy)
+{
+    if (m_authorizationBusy == busy) {
+        return;
+    }
+    m_authorizationBusy = busy;
+    if (m_addAccount) {
+        m_addAccount->setText(busy ? QStringLiteral("Authorizing...")
+                                   : QStringLiteral("Add Account..."));
+    }
+    updateAccountButtons();
+}
+
+void SettingsWindow::setAccountMessage(const QString &message, bool error)
+{
+    if (!m_accountMessage) {
+        return;
+    }
+    m_accountMessage->setText(message);
+    QFont font = m_accountMessage->font();
+    font.setBold(error);
+    m_accountMessage->setFont(font);
+    m_accountMessage->setVisible(!message.isEmpty());
+}
+
 void SettingsWindow::populateNotifications()
 {
     if (!m_config) {
@@ -430,11 +456,14 @@ void SettingsWindow::refreshStatus()
 void SettingsWindow::updateAccountButtons()
 {
     const bool hasSelection = !selectedAccountId().isEmpty();
+    if (m_addAccount) {
+        m_addAccount->setEnabled(!m_authorizationBusy);
+    }
     if (m_reauthorize) {
-        m_reauthorize->setEnabled(hasSelection);
+        m_reauthorize->setEnabled(hasSelection && !m_authorizationBusy);
     }
     if (m_removeAccount) {
-        m_removeAccount->setEnabled(hasSelection);
+        m_removeAccount->setEnabled(hasSelection && !m_authorizationBusy);
     }
 }
 

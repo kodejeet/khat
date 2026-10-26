@@ -178,11 +178,19 @@ void TestOAuthManager::loadsCachedTokensAndReportsMissing()
     QSignalSpy initial(&manager, &OAuthManager::initialTokenLoadFinished);
     QSignalSpy cache(&manager, &OAuthManager::tokenCacheChanged);
     QSignalSpy errors(&manager, &OAuthManager::tokenError);
+    bool tokenWasCachedAtCompletion = false;
+    connect(&manager, &OAuthManager::initialTokenLoadFinished, &manager, [&] {
+        QString loaded;
+        tokenWasCachedAtCompletion =
+            manager.accessToken(QStringLiteral("account-one"), &loaded)
+            && loaded == QStringLiteral("cached-access");
+    });
     manager.loadTokens();
 
     QTRY_COMPARE_WITH_TIMEOUT(initial.count(), 1, 5000);
     QVERIFY(cache.count() >= 1);
     QCOMPARE(errors.count(), 0);
+    QVERIFY(tokenWasCachedAtCompletion);
 
     QString token;
     QVERIFY(manager.accessToken(QStringLiteral("account-one"), &token));

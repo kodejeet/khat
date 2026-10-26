@@ -32,6 +32,10 @@ public:
     // Test seam; the default asks the user with QMessageBox.
     void setRemovalConfirmation(std::function<bool(const QString &accountEmail)> handler);
 
+    // Authorization progress is controlled by the application controller.
+    void setAuthorizationBusy(bool busy);
+    void setAccountMessage(const QString &message, bool error = false);
+
     void refresh();
 
 signals:
@@ -71,6 +75,7 @@ private:
     QPushButton *m_reauthorize = nullptr;
     QPushButton *m_removeAccount = nullptr;
     QLabel *m_accountMessage = nullptr;
+    bool m_authorizationBusy = false;
 
     QCheckBox *m_notificationsEnabled = nullptr;
     QSpinBox *m_pollInterval = nullptr;
