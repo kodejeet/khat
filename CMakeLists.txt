@@ -34,6 +34,10 @@ add_library(gmailnotifier_core STATIC
     src/model/MessageSummary.h
     src/state/StateDatabase.cpp
     src/state/StateDatabase.h
+    src/sync/BackoffPolicy.cpp
+    src/sync/BackoffPolicy.h
+    src/sync/SyncScheduler.cpp
+    src/sync/SyncScheduler.h
     src/sync/SyncService.cpp
     src/sync/SyncService.h
 )

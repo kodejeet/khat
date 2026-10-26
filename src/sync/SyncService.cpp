@@ -268,7 +268,7 @@ void SyncService::handleListPage(Job *job, const GmailListPage &page)
 
 void SyncService::handleListError(Job *job, const GmailError &error)
 {
-    failJob(job, error.kind, error.message);
+    failJob(job, error.kind, error.message, error.retryAfterSeconds);
 }
 
 void SyncService::beginMetadataPhase(Job *job)
@@ -318,7 +318,7 @@ void SyncService::handleMetadataError(Job *job, const GmailError &error)
         requestNextMetadata(job);
         return;
     }
-    failJob(job, error.kind, error.message);
+    failJob(job, error.kind, error.message, error.retryAfterSeconds);
 }
 
 void SyncService::finalizeMetadata(Job *job)
@@ -349,7 +349,8 @@ void SyncService::finalizeMetadata(Job *job)
     completeJob(job, result);
 }
 
-void SyncService::failJob(Job *job, GmailErrorKind kind, const QString &message)
+void SyncService::failJob(Job *job, GmailErrorKind kind, const QString &message,
+                          int retryAfterSeconds)
 {
     if (!m_jobs.contains(job->request.accountId)
         || m_jobs.value(job->request.accountId) != job) {
@@ -367,6 +368,7 @@ void SyncService::failJob(Job *job, GmailErrorKind kind, const QString &message)
     result.success = false;
     result.baseline = job->baseline;
     result.pagesFetched = job->pagesFetched;
+    result.retryAfterSeconds = retryAfterSeconds;
     result.errorKind = kind;
     result.error = message;
     completeJob(job, result);

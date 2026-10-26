@@ -28,6 +28,7 @@ struct SyncResult
     bool baseline = false;
     int newMessageCount = 0;
     int pagesFetched = 0;
+    int retryAfterSeconds = 0;
     GmailErrorKind errorKind = GmailErrorKind::None;
     QString error;
 };
@@ -65,7 +66,8 @@ private:
     void handleMetadata(Job *job, const MessageSummary &message);
     void handleMetadataError(Job *job, const GmailError &error);
     void finalizeMetadata(Job *job);
-    void failJob(Job *job, GmailErrorKind kind, const QString &message);
+    void failJob(Job *job, GmailErrorKind kind, const QString &message,
+                 int retryAfterSeconds = 0);
     void completeJob(Job *job, const SyncResult &result);
 
     StateDatabase *m_state;
