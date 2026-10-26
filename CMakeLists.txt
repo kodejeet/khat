@@ -23,6 +23,19 @@ add_library(gmailnotifier_core STATIC
     src/app/UnixSignalHandler.cpp
     src/app/UnixSignalHandler.h
     src/auth/AccessTokenProvider.h
+    src/auth/OAuthLoopbackServer.cpp
+    src/auth/OAuthLoopbackServer.h
+    src/auth/OAuthPkce.cpp
+    src/auth/OAuthPkce.h
+    src/auth/OAuthToken.cpp
+    src/auth/OAuthToken.h
+    src/auth/OAuthTokenClient.cpp
+    src/auth/OAuthTokenClient.h
+    src/auth/OAuthTokenStore.h
+    src/auth/SecretServiceTokenStore.cpp
+    src/auth/SecretServiceTokenStore.h
+    src/auth/SecretServiceTypes.cpp
+    src/auth/SecretServiceTypes.h
     src/config/AppConfig.cpp
     src/config/AppConfig.h
     src/config/AppPaths.cpp

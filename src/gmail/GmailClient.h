@@ -33,9 +33,14 @@ public:
                       const QString &pageToken = QString());
     void fetchMessage(const QString &messageId);
 
+    // Minimal users.getProfile request used after authorization to learn the
+    // connected Gmail address. Uses the same access token and network manager.
+    void fetchProfile();
+
 signals:
     void listPageReady(const GmailListPage &page);
     void messageReady(const MessageSummary &message);
+    void profileReady(const QString &emailAddress);
     void requestFailed(const GmailError &error);
 
 private:
@@ -43,6 +48,7 @@ private:
     QUrl endpoint(const QString &suffix) const;
     void handleListReply(QNetworkReply *reply);
     void handleMessageReply(QNetworkReply *reply);
+    void handleProfileReply(QNetworkReply *reply);
     GmailError errorFromReply(QNetworkReply *reply, const QByteArray &body) const;
 
     QNetworkAccessManager *m_network;

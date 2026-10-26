@@ -145,6 +145,26 @@ void GmailClient::fetchMessage(const QString &messageId)
     });
 }
 
+void GmailClient::fetchProfile()
+{
+    if (m_accessToken.isEmpty()) {
+        emit requestFailed({GmailErrorKind::NoToken, 0, 0,
+                            QStringLiteral("No Gmail access token is available.")});
+        return;
+    }
+
+    QUrl url = endpoint(QStringLiteral("users/me/profile"));
+    QUrlQuery urlQuery;
+    urlQuery.addQueryItem(QStringLiteral("fields"), QStringLiteral("emailAddress"));
+    url.setQuery(urlQuery);
+
+    QNetworkReply *reply = m_network->get(makeRequest(url));
+    connect(reply, &QNetworkReply::finished, this, [this, reply] {
+        handleProfileReply(reply);
+        reply->deleteLater();
+    });
+}
+
 GmailError GmailClient::errorFromReply(QNetworkReply *reply, const QByteArray &body) const
 {
     GmailError error;
@@ -311,4 +331,33 @@ void GmailClient::handleMessageReply(QNetworkReply *reply)
     message.subject = headerValue(payload, QStringLiteral("Subject"));
 
     emit messageReady(message);
+}
+
+void GmailClient::handleProfileReply(QNetworkReply *reply)
+{
+    const QByteArray body = reply->readAll().left(kMaxErrorBodyBytes);
+    const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+
+    if (reply->error() != QNetworkReply::NoError || status < 200 || status > 299) {
+        emit requestFailed(errorFromReply(reply, body));
+        return;
+    }
+
+    QJsonParseError parseError;
+    const QJsonDocument document = QJsonDocument::fromJson(body, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+        emit requestFailed({GmailErrorKind::InvalidResponse, status, 0,
+                            QStringLiteral("Gmail API returned malformed profile JSON.")});
+        return;
+    }
+
+    const QString email =
+        document.object().value(QStringLiteral("emailAddress")).toString().trimmed();
+    if (email.isEmpty()) {
+        emit requestFailed({GmailErrorKind::InvalidResponse, status, 0,
+                            QStringLiteral("Gmail API returned a profile without an email "
+                                           "address.")});
+        return;
+    }
+    emit profileReady(email);
 }

@@ -9,6 +9,7 @@ struct OAuthClientConfig
     QString clientSecret;
     QUrl authUri;
     QUrl tokenUri;
+    QUrl revokeUri;
     QString scope;
 };
 

@@ -25,6 +25,7 @@ OAuthClientConfig defaultOAuthClientConfig()
     OAuthClientConfig config;
     config.authUri = QUrl(QStringLiteral("https://accounts.google.com/o/oauth2/v2/auth"));
     config.tokenUri = QUrl(QStringLiteral("https://oauth2.googleapis.com/token"));
+    config.revokeUri = QUrl(QStringLiteral("https://oauth2.googleapis.com/revoke"));
     config.scope = QString::fromLatin1(kGmailReadonlyScope);
     return config;
 }
@@ -60,6 +61,9 @@ QStringList validateOAuthClientConfig(const OAuthClientConfig &config)
     }
     if (!isSecureEndpoint(config.tokenUri)) {
         errors << QStringLiteral("token_uri must be an HTTPS URL (or loopback HTTP for tests).");
+    }
+    if (!isSecureEndpoint(config.revokeUri)) {
+        errors << QStringLiteral("revoke_uri must be an HTTPS URL (or loopback HTTP for tests).");
     }
 
     if (config.scope != QString::fromLatin1(kGmailReadonlyScope)) {

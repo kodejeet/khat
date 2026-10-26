@@ -59,6 +59,11 @@ bool oauthClientConfigFromJson(const QJsonObject &object, OAuthClientConfig *con
         && !tokenUri.isEmpty()) {
         parsed.tokenUri = QUrl(tokenUri);
     }
+    QString revokeUri;
+    if (readString(object, QStringLiteral("revoke_uri"), &revokeUri, &localErrors)
+        && !revokeUri.isEmpty()) {
+        parsed.revokeUri = QUrl(revokeUri);
+    }
     readString(object, QStringLiteral("scope"), &parsed.scope, &localErrors);
 
     localErrors += validateOAuthClientConfig(parsed);
@@ -80,6 +85,7 @@ QJsonObject oauthClientConfigToJson(const OAuthClientConfig &config)
     root.insert(QStringLiteral("client_secret"), config.clientSecret);
     root.insert(QStringLiteral("auth_uri"), config.authUri.toString());
     root.insert(QStringLiteral("token_uri"), config.tokenUri.toString());
+    root.insert(QStringLiteral("revoke_uri"), config.revokeUri.toString());
     root.insert(QStringLiteral("scope"), config.scope);
     return root;
 }

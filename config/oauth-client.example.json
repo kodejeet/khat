@@ -3,5 +3,6 @@
   "client_secret": "REPLACE_WITH_DESKTOP_CLIENT_SECRET",
   "auth_uri": "https://accounts.google.com/o/oauth2/v2/auth",
   "token_uri": "https://oauth2.googleapis.com/token",
+  "revoke_uri": "https://oauth2.googleapis.com/revoke",
   "scope": "https://www.googleapis.com/auth/gmail.readonly"
 }

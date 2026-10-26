@@ -20,6 +20,7 @@ public:
         QUrl url;
         QByteArray authorization;
         QByteArray method;
+        QByteArray body;
     };
 
     struct Response
@@ -30,6 +31,8 @@ public:
     };
 
     using Handler = std::function<Response(const QUrl &url, const QByteArray &authorization)>;
+    using BodyHandler = std::function<Response(const QUrl &url, const QByteArray &authorization,
+                                               const QByteArray &body)>;
 
     explicit FakeGmailServer(QObject *parent = nullptr)
         : QTcpServer(parent)
@@ -49,13 +52,32 @@ public:
                             if (headerEnd < 0) {
                                 return;
                             }
-                            *responded = true;
 
                             const QByteArray head = buffer->left(headerEnd);
                             const QList<QByteArray> lines = head.split('\n');
+                            int contentLength = 0;
+                            for (int i = 1; i < lines.size(); ++i) {
+                                const QByteArray line = lines.at(i).trimmed();
+                                const int colon = line.indexOf(':');
+                                if (colon <= 0) {
+                                    continue;
+                                }
+                                if (line.left(colon).trimmed().toLower()
+                                    == QByteArrayLiteral("content-length")) {
+                                    contentLength = line.mid(colon + 1).trimmed().toInt();
+                                }
+                            }
+                            const int bodyStart = headerEnd + 4;
+                            if (buffer->size() < bodyStart + contentLength) {
+                                return;
+                            }
+                            *responded = true;
+
                             const QList<QByteArray> requestLine =
                                 lines.value(0).trimmed().split(' ');
                             QUrl url = QUrl::fromEncoded(requestLine.value(1));
+                            const QByteArray body =
+                                buffer->mid(bodyStart, contentLength);
 
                             QByteArray authorization;
                             for (int i = 1; i < lines.size(); ++i) {
@@ -74,12 +96,16 @@ public:
                             request.url = url;
                             request.authorization = authorization;
                             request.method = requestLine.value(0);
+                            request.body = body;
                             requests.append(request);
 
                             const Response response =
-                                handler ? handler(url, authorization) : Response{404, "{}"};
+                                bodyHandler
+                                ? bodyHandler(url, authorization, body)
+                                : handler ? handler(url, authorization) : Response{404, "{}"};
                             const QByteArray statusText = response.status == 200
                                 ? QByteArrayLiteral("OK")
+                                : response.status == 400 ? QByteArrayLiteral("Bad Request")
                                 : response.status == 401 ? QByteArrayLiteral("Unauthorized")
                                 : response.status == 403 ? QByteArrayLiteral("Forbidden")
                                 : response.status == 404 ? QByteArrayLiteral("Not Found")
@@ -116,5 +142,6 @@ public:
     }
 
     Handler handler;
+    BodyHandler bodyHandler;
     QList<Request> requests;
 };
