@@ -1,0 +1,28 @@
+# Out-of-tree build output
+/build/
+/build-*/
+/CMakeFiles/
+/CMakeCache.txt
+/cmake_install.cmake
+/CTestTestfile.cmake
+/Testing/
+/install_manifest.txt
+Makefile
+
+# Qt Creator / IDE
+*.user
+*.user.*
+CMakeLists.txt.user*
+.vscode/
+.idea/
+
+# Runtime state and local credentials (copies in the repo root only)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+/config.json
+/oauth-client.json
+
+# Temporary test output
+*.log
