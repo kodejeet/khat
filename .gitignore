@@ -9,6 +9,10 @@
 /install_manifest.txt
 Makefile
 
+# Python cache
+__pycache__/
+*.pyc
+
 # Qt Creator / IDE
 *.user
 *.user.*
