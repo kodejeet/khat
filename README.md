@@ -9,18 +9,20 @@ freedesktop notification service.
 
 The background application, Gmail synchronization, native notifications,
 single-instance command socket, suspend/resume handling, and minimal settings
-window are implemented. OAuth authorization and secure token storage are not
-implemented yet, so the notifier currently starts idle and never contacts Gmail.
-See `PROGRESS.md` for tested, pending, and blocked work.
+window are implemented and tested against local fakes. OAuth authorization and
+Secret Service token storage are the final credential-dependent step. Until
+they are complete, the notifier starts idle and never contacts Gmail. See
+`PROGRESS.md` for tested, pending, and blocked work.
 
 ## Requirements
 
-- Ubuntu 24.04 or newer with GNOME
-- Qt 6 development packages (Core, Gui, Network, Sql, Widgets, DBus, Test)
+- Ubuntu 24.10 or newer with GNOME (verified on Ubuntu 26.04.1 with GNOME
+  Shell 50.1; Ubuntu 24.04's default Qt 6.4 packages are too old)
+- Qt 6.5+ development packages (Core, Gui, Network, Sql, Widgets, DBus, Test)
 - CMake 3.21+
 - A C++20 compiler
 - A Google Cloud project with the Gmail API enabled and a Desktop OAuth client
-  (documented later; credentials are never stored in this repository)
+  (credentials are never stored in this repository)
 
 ## Build
 
@@ -47,6 +49,19 @@ Only one notifier instance runs at a time. A second launch talks to the existing
 process through a private socket in the user runtime directory. Account
 authorization is not available yet, so manual checks report that no authorized
 accounts exist.
+
+## Documentation
+
+- [Install, run, and remove](docs/installation.md) — packages, build, per-user
+  install, systemd autostart, update, and complete uninstall
+- [Google Cloud and OAuth setup](docs/google-oauth-setup.md) — Cloud project,
+  Gmail API, Desktop OAuth client, consent screen, testing/verification limits
+- [Resource use, API cost, and troubleshooting](docs/operations.md) — request
+  and quota estimates, memory/disk use, diagnostics, suspend/logout/DND notes
+- [Notifications and Do Not Disturb](docs/notifications-and-dnd.md) — delivery,
+  click behavior, and the GNOME 50.1 DND limitation
+- [GNOME Online Accounts investigation](docs/goa-investigation.md) — why GOA
+  tokens are not used
 
 ## Security
 
