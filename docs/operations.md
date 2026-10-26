@@ -91,11 +91,10 @@ describe polling as free of Google quota or OAuth restrictions.
 
 Token exchange, refresh, and revocation use `oauth2.googleapis.com`, not the
 Gmail API, so they are not counted in the Gmail quota-unit table above. They are
-still subject to Google's OAuth rate limits and availability. After the
-credential-dependent step is complete, expect roughly one refresh per account
-per access-token lifetime (often about an hour) while the app is running, plus
-retries after failures. The automated tests use fake OAuth endpoints and do not
-make these requests.
+still subject to Google's OAuth rate limits and availability. Once an account is
+authorized, expect roughly one refresh per account per access-token lifetime
+(often about an hour) while the app is running, plus retries after failures. The
+automated tests use fake OAuth endpoints and do not make these requests.
 
 ### Backoff and offline behavior
 
@@ -180,11 +179,12 @@ verbose network logging in a bug report without reviewing it first.
 
 ### The app starts but never checks Gmail
 
-Until OAuth and Secret Service are finished, this is expected: the app starts
-idle. Once they are available, verify `~/.config/gmail-notifier/oauth-client.json`
-exists, has valid non-placeholder values, mode `0600`, and the exact
-`gmail.readonly` scope. Also confirm at least one account is present and
-enabled. The startup log distinguishes "no accounts", "accounts not authorized",
+If no account is authorized, this is expected: the app starts idle. Verify
+`~/.config/gmail-notifier/oauth-client.json` exists, has valid non-placeholder
+values, mode `0600`, and the exact `gmail.readonly` scope. Also confirm at least
+one account is present, enabled, and authorized. The refresh token must be
+available from Secret Service, so keep the login keyring unlocked while the app
+runs. The startup log distinguishes "no accounts", "accounts not authorized",
 and "no enabled accounts are authorized". See
 [Google Cloud and OAuth setup](google-oauth-setup.md).
 
@@ -221,6 +221,17 @@ seven-day expiry, access removed at
 <https://myaccount.google.com/permissions>, a deleted or rotated OAuth client,
 or an account policy change. Use **Reauthorize**. If the OAuth client itself was
 deleted, create a new Desktop client and update `oauth-client.json`.
+
+### Secret Service or login keyring unavailable
+
+Refresh tokens are read from and written to the freedesktop Secret Service,
+normally GNOME Keyring. If `org.freedesktop.secrets` is missing, the login
+keyring is locked, or an unlock prompt is refused, token loading or storage
+fails. The account is then treated as unauthorized, or an authorization attempt
+stops with a secure-storage error. Unlock the login keyring, confirm the Secret
+Service is available on the session bus, and restart the service so stored
+tokens are loaded again. Do not disable the keyring or copy tokens into
+`config.json` as a workaround.
 
 ### `redirect_uri_mismatch`
 

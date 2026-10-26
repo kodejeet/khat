@@ -12,13 +12,14 @@ Qt 6.4 packages are too old.
 
 ## Current status
 
-The build, Gmail synchronization, native notifications, settings window,
-background process, single-instance socket, and suspend/offline handling are
-implemented and tested against local fakes. OAuth authorization and Secret
-Service token storage are the final credential-dependent step. Until that step
-is complete, the application starts idle and does not contact Gmail. The OAuth
-client file described below can be prepared now; it cannot authorize an account
-by itself.
+The build, OAuth account management, Secret Service token storage, Gmail
+synchronization, native notifications, settings window, background process,
+single-instance socket, and suspend/offline handling are implemented and tested
+against local fakes and a private-bus Secret Service fake. Real Google consent,
+token exchange, keyring writes, and live Gmail requests were intentionally not
+performed. The application starts idle until you provide an OAuth client and
+authorize an account. The OAuth client file described below cannot authorize an
+account by itself.
 
 ## 1. Install build dependencies
 
@@ -77,8 +78,7 @@ unit search path.
 
 ## 4. Prepare the OAuth client file
 
-Authorization is not available in the current build. When it is enabled, the
-application reads a local OAuth client file separate from account tokens:
+The application reads a local OAuth client file separate from account tokens:
 
 ```sh
 install -d -m 700 "$HOME/.config/gmail-notifier"
@@ -191,6 +191,12 @@ The state directory is mode-restricted by the application. The single-instance
 socket lives in a mode-0700 runtime directory with a user-only socket. Do not
 loosen these permissions to make commands work.
 
+Refresh tokens are stored as Secret Service items belonging to
+`gmail-notifier`. Keep the login keyring unlocked while the app runs; if Secret
+Service is missing or locked, token loading fails and the account is treated as
+unauthorized until the keyring is available. Never copy token values into a
+terminal, log, or bug report.
+
 ## 8. Update an existing installation
 
 Stop the service before replacing the binary, then install again:
@@ -212,10 +218,11 @@ database if the account history matters.
 
 ## 9. Remove the application completely
 
-Remove accounts through the settings window first when authorization is
-available. Removing an account deletes its local synchronization state and its
-Secret Service token, and the application revokes the Google grant before
-forgetting it.
+Remove accounts through the settings window first. Removing an account deletes
+its local synchronization state and its Secret Service token, and the
+application attempts to revoke the Google grant before forgetting it. If
+revocation cannot be completed, local cleanup still proceeds and the app reports
+a warning.
 
 Then stop and disable autostart:
 

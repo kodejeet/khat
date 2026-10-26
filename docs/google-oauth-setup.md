@@ -10,16 +10,18 @@ document if the console differs.
 
 ## Current implementation status
 
-- [implemented] The application settings, separate OAuth client file,
-  placeholder detection, HTTPS endpoint validation, and exact-scope validation
-  exist. See `config/oauth-client.example.json`.
-- [planned] The browser authorization flow, PKCE token exchange, Secure
-  Service/Keyring token storage, and Add/Reauthorize/Remove account actions are
-  the final credential-dependent step. Until that work is complete, the
-  application starts idle and makes no Gmail requests.
-- [blocked] No real Google authorization, consent, token exchange, keyring
-  write, or Gmail API call has been performed while building this project.
-  Those actions require your Google Cloud client and explicit consent.
+- [implemented, mock-tested] OAuth authorization with PKCE and `state`, the
+  loopback callback, token exchange, Gmail profile verification, Secret
+  Service/Keyring token storage, background refresh, `invalid_grant` handling,
+  and Add/Reauthorize/Remove account actions. Tests use loopback fake OAuth and
+  Gmail endpoints plus a private-bus Secret Service fake.
+- [implemented, tested] The application settings, separate OAuth client file,
+  placeholder detection, HTTPS endpoint validation, and exact-scope validation.
+  See `config/oauth-client.example.json`.
+- [blocked on your credentials and consent] No real Google authorization,
+  consent screen, token exchange, keyring write, or Gmail API call has been
+  performed while building this project. The application starts idle until you
+  provide a Google Cloud client and authorize an account.
 
 Do not paste real credentials into this repository, an issue, a chat, or a log.
 The only file that should contain them is your local
@@ -231,11 +233,10 @@ Notes:
   This prints nothing on success. Avoid commands that echo the whole file into
   terminal scrollback or shell history.
 
-## 6. How authorization will work
+## 6. How authorization works
 
-The planned flow, once the credential-dependent step is implemented:
-
-1. In **Settings → Accounts**, choose **Add Account...**.
+1. In **Settings → Accounts**, choose **Add Account...**. While the flow is
+   running, the account buttons are disabled and the window shows progress.
 2. The app generates a random PKCE verifier, an S256 challenge, and a random
    `state` value.
 3. It starts a one-shot HTTP listener on `127.0.0.1` with an ephemeral port and
@@ -249,21 +250,26 @@ The planned flow, once the credential-dependent step is implemented:
 6. The app uses the access token to read the Gmail profile email address, stores
    the refresh token in Secret Service, and keeps the short-lived access token
    in memory.
-7. The account appears in Settings. The first Gmail synchronization records a
-   baseline; it does not notify about existing mail.
+7. The account is saved to `config.json` and appears in Settings. The first Gmail
+   synchronization records a baseline; it does not notify about existing mail.
 
-Reauthorization repeats the flow for an existing account, using the account as
-a login hint. Removing an account revokes the Google grant when possible,
-deletes the Secret Service item, and deletes local synchronization state.
+If the callback `state` is wrong, Google returns no refresh token, the profile
+address does not match the account, or Secret Service cannot store the token,
+the flow stops with an error in Settings and no account is added. Reauthorization
+must resolve to the same normalized email address as the configured account.
+Removing an account attempts to revoke the Google grant, deletes the Secret
+Service item, and deletes local synchronization state.
 
-The planned code uses the authorization-code flow only. It does not use the
+The implementation uses the authorization-code flow only. It does not use the
 deprecated out-of-band (copy/paste) flow, a custom URI scheme, or the implicit
 flow. It does not request an identity scope just to learn the email address.
 
 ## 7. Token lifecycle, revocation, and security
 
-- Access tokens are short-lived. The app must refresh them with the stored
-  refresh token; a revoked or expired refresh token requires reauthorization.
+- Access tokens are short-lived. When Gmail returns HTTP 401, the app refreshes
+  the access token with the stored refresh token and retries the check. A
+  revoked or expired refresh token requires reauthorization; the app clears the
+  unusable cached/stored token and reports the account as needing attention.
 - Testing-mode refresh tokens expire after seven days. A revoked grant, a
   deleted OAuth client, a changed password under some account policies, and
   other Google security events can also invalidate tokens.
@@ -282,9 +288,9 @@ flow. It does not request an identity scope just to learn the email address.
   Google. See
   <https://support.google.com/cloud/answer/15549257#unused-client-deletion>.
 
-## 8. What you must provide to finish the integration
+## 8. What you must provide for real authorization
 
-To exercise real authorization, you must:
+To use the notifier with a real mailbox, you must:
 
 1. create the Google Cloud project and enable the Gmail API;
 2. configure the consent screen and add your account as a test user (or
@@ -292,13 +298,15 @@ To exercise real authorization, you must:
 3. create a **Desktop app** OAuth client;
 4. put its values in `~/.config/gmail-notifier/oauth-client.json` with mode
    `0600`;
-5. explicitly authorize the account in the app and complete Google's consent
-   screen.
+5. unlock your login keyring, open the app's settings, choose **Add Account...**,
+   and complete Google's consent screen;
+6. optionally enable the systemd user service after authorization succeeds.
 
 Those steps require your credentials and consent. They are intentionally not
 performed by the automated tests or by the implementation process. The test
 suite uses loopback fake OAuth and Gmail endpoints and a private D-Bus fake
-Secret Service, so it never contacts Google or writes to your real keyring.
+Secret Service, so it never contacts Google or writes to your real keyring. No
+real token, consent result, or keyring item exists in this repository.
 
 ## Related documentation
 

@@ -7,12 +7,14 @@ freedesktop notification service.
 
 ## Status
 
-The background application, Gmail synchronization, native notifications,
-single-instance command socket, suspend/resume handling, and minimal settings
-window are implemented and tested against local fakes. OAuth authorization and
-Secret Service token storage are the final credential-dependent step. Until
-they are complete, the notifier starts idle and never contacts Gmail. See
-`PROGRESS.md` for tested, pending, and blocked work.
+The background application, OAuth account flow, Secret Service token storage,
+Gmail synchronization, native notifications, single-instance command socket,
+suspend/resume handling, and minimal settings window are implemented and tested
+against local OAuth/Gmail fakes and a private-bus Secret Service fake. Real
+Google authorization, consent, keyring writes, and live Gmail requests were not
+exercised while building this project. You must supply a Desktop OAuth client
+and explicitly authorize each account. Until then the notifier starts idle and
+never contacts Gmail. See `PROGRESS.md` for tested and blocked work.
 
 ## Requirements
 
@@ -46,9 +48,11 @@ ctest --test-dir build --output-on-failure
 ```
 
 Only one notifier instance runs at a time. A second launch talks to the existing
-process through a private socket in the user runtime directory. Account
-authorization is not available yet, so manual checks report that no authorized
-accounts exist.
+process through a private socket in the user runtime directory. To connect an
+account, prepare the OAuth client file described in the setup guide, open
+**Settings → Accounts**, choose **Add Account...**, and complete Google's consent
+screen. The refresh token is stored in Secret Service. Manual checks report that
+no authorized accounts exist until at least one account is connected.
 
 ## Documentation
 
@@ -65,10 +69,12 @@ accounts exist.
 
 ## Security
 
-- OAuth client configuration and refresh tokens are kept out of the repository.
+- OAuth client configuration stays in a mode-0600 local file; refresh tokens
+  live in Secret Service and are never written to the repository or `config.json`.
 - Only Gmail metadata and short previews are requested.
-- No credentials, tokens, or email content are written to logs.
-- Real Google authorization is not exercised by the automated test suite.
+- No credentials, tokens, email bodies, or email subjects are written to logs.
+- Real Google authorization and real keyring writes are not exercised by the
+  automated test suite.
 
 ## License
 
