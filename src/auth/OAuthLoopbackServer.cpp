@@ -12,13 +12,13 @@ constexpr int kDefaultTimeoutMs = 5 * 60 * 1000;
 constexpr auto kCallbackPath = "/callback";
 
 const QByteArray kSuccessHtml =
-    "<!doctype html><html><head><meta charset=\"utf-8\"><title>Gmail Notifier</title>"
+    "<!doctype html><html><head><meta charset=\"utf-8\"><title>khat</title>"
     "</head><body><h1>Authorization received</h1>"
-    "<p>You can close this window and return to Gmail Notifier.</p></body></html>";
+    "<p>You can close this window and return to khat.</p></body></html>";
 const QByteArray kFailureHtml =
-    "<!doctype html><html><head><meta charset=\"utf-8\"><title>Gmail Notifier</title>"
+    "<!doctype html><html><head><meta charset=\"utf-8\"><title>khat</title>"
     "</head><body><h1>Authorization failed</h1>"
-    "<p>Return to Gmail Notifier and try again.</p></body></html>";
+    "<p>Return to khat and try again.</p></body></html>";
 } // namespace
 
 OAuthLoopbackServer::OAuthLoopbackServer(QObject *parent)

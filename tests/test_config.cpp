@@ -267,8 +267,8 @@ void TestConfig::appPathsAreNamespaced()
     const AppPaths paths = AppPaths::fromConfigDir(QStringLiteral("/tmp/example-config"));
     QCOMPARE(paths.configFile, QStringLiteral("/tmp/example-config/config.json"));
     QCOMPARE(paths.oauthClientFile, QStringLiteral("/tmp/example-config/oauth-client.json"));
-    QVERIFY(paths.stateFile.endsWith(QStringLiteral("/gmail-notifier/state.db")));
-    QVERIFY(paths.runtimeDir.endsWith(QStringLiteral("/gmail-notifier")));
+    QVERIFY(paths.stateFile.endsWith(QStringLiteral("/khat/state.db")));
+    QVERIFY(paths.runtimeDir.endsWith(QStringLiteral("/khat")));
 }
 
 QTEST_GUILESS_MAIN(TestConfig)

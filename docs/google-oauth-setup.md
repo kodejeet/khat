@@ -1,8 +1,8 @@
 # Google Cloud and OAuth setup
 
 This guide describes the Google Cloud configuration and local OAuth client file
-needed by Gmail Notifier. It follows Google's current documentation for
-**Desktop app** OAuth clients and the authorization-code flow with PKCE.
+needed by khat. It follows Google's current documentation for **Desktop app**
+OAuth clients and the authorization-code flow with PKCE.
 
 Checked against Google's published documentation on 2026-10-26. Google can
 change console labels, quotas, and verification rules; follow the links in this
@@ -28,7 +28,7 @@ document if the console differs.
 
 Do not paste real credentials into this repository, an issue, a chat, or a log.
 The only file that should contain them is your local
-`~/.config/gmail-notifier/oauth-client.json`, mode `0600`.
+`~/.config/khat/oauth-client.json`, mode `0600`.
 
 ## What the application requests
 
@@ -53,7 +53,9 @@ loopback redirect on `127.0.0.1`; no public callback URL is required.
 ## 1. Create a Google Cloud project
 
 1. Open <https://console.cloud.google.com/projectcreate>.
-2. Create a project (for example, `gmail-notifier`) and select it.
+2. Create a project and select it. The project ID is permanent and does not have
+   to match the app name. The current project uses
+   `your-project-id`; do not change that ID.
 3. Keep the project ID and project number for your own reference. The
    application does not need them.
 
@@ -78,7 +80,7 @@ navigation varies, but the required settings are the same.
 
 1. Open <https://console.cloud.google.com/auth/overview>.
 2. If prompted, click **Get started** and provide:
-   - an app name, such as `Gmail Notifier`;
+   - an app name, such as `khat`;
    - a user support email;
    - a developer contact email;
    - the audience described below.
@@ -153,7 +155,7 @@ determination.
 1. Open <https://console.cloud.google.com/auth/clients>.
 2. Click **Create client**.
 3. Select application type **Desktop app**.
-4. Give it a name such as `Gmail Notifier Desktop` and click **Create**.
+4. Give it a name such as `khat Desktop` and click **Create**.
 5. Download the JSON credentials immediately. Depending on when the client was
    created, Google may show the client secret only once. If you lose it, use
    the client-secret rotation action rather than creating unnecessary clients.
@@ -169,7 +171,7 @@ The downloaded file looks similar to this (values abbreviated):
 {
   "installed": {
     "client_id": "1234567890-abc.apps.googleusercontent.com",
-    "project_id": "gmail-notifier",
+    "project_id": "your-project-id",
     "auth_uri": "https://accounts.google.com/o/oauth2/v2/auth",
     "token_uri": "https://oauth2.googleapis.com/token",
     "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
@@ -190,10 +192,10 @@ Do not commit either file.
 Create the configuration directory and a mode-`0600` file from the example:
 
 ```sh
-install -d -m 700 "$HOME/.config/gmail-notifier"
+install -d -m 700 "$HOME/.config/khat"
 install -m 600 config/oauth-client.example.json \
-    "$HOME/.config/gmail-notifier/oauth-client.json"
-${EDITOR:-vi} "$HOME/.config/gmail-notifier/oauth-client.json"
+    "$HOME/.config/khat/oauth-client.json"
+${EDITOR:-vi} "$HOME/.config/khat/oauth-client.json"
 ```
 
 Replace all placeholders with values from your Desktop client:
@@ -234,7 +236,7 @@ Notes:
 - To check only JSON syntax without displaying secrets:
 
   ```sh
-  python3 -m json.tool "$HOME/.config/gmail-notifier/oauth-client.json" >/dev/null
+  python3 -m json.tool "$HOME/.config/khat/oauth-client.json" >/dev/null
   ```
 
   This prints nothing on success. Avoid commands that echo the whole file into
@@ -285,9 +287,9 @@ flow. It does not request an identity scope just to learn the email address.
   local copy remains. Remove the grant there if you delete the application or
   lose the keyring item.
 - In GNOME, Secret Service is normally provided by GNOME Keyring. Tokens are
-  stored as items belonging to `gmail-notifier`; **Passwords and Keys**
-  (Seahorse) can show or delete them. Never print a token to a terminal or
-  paste it into a bug report.
+  stored as items belonging to `khat`, with labels like
+  `khat token for <account-id>`. **Passwords and Keys** (Seahorse) can show or
+  delete them. Never print a token to a terminal or paste it into a bug report.
 - If the OAuth client secret or a token is exposed, revoke the grant, delete the
   exposed client secret or rotate it in the Cloud console, remove the local
   client file, and authorize again.
@@ -303,7 +305,7 @@ To use the notifier with a real mailbox, you must:
 2. configure the consent screen and add your account as a test user (or
    publish the app);
 3. create a **Desktop app** OAuth client;
-4. put its values in `~/.config/gmail-notifier/oauth-client.json` with mode
+4. put its values in `~/.config/khat/oauth-client.json` with mode
    `0600`;
 5. unlock your login keyring, open the app's settings, choose **Add Account...**,
    and complete Google's consent screen;
@@ -317,7 +319,7 @@ consent result, or keyring item exists in this repository.
 
 ## Related documentation
 
-- [Install, run, and remove Gmail Notifier](installation.md)
+- [Install, run, and remove khat](installation.md)
 - [Resource use, API cost, and troubleshooting](operations.md)
 - [Notifications and Do Not Disturb](notifications-and-dnd.md)
 - [GNOME Online Accounts investigation](goa-investigation.md)

@@ -31,7 +31,7 @@ private slots:
 
 void TestPowerMonitor::initTestCase()
 {
-    if (qEnvironmentVariableIsEmpty("GMAIL_NOTIFIER_TEST_PRIVATE_BUS")) {
+    if (qEnvironmentVariableIsEmpty("KHAT_TEST_PRIVATE_BUS")) {
         QSKIP("Run through ctest under dbus-run-session (private session bus only).");
     }
     QVERIFY2(QDBusConnection::sessionBus().isConnected(), "private session bus unavailable");
@@ -69,7 +69,7 @@ void TestPowerMonitor::forwardsSleepSignals()
 
 void TestPowerMonitor::missingBusFailsGracefully()
 {
-    QDBusConnection missing(QStringLiteral("gmail-notifier-test-unconnected"));
+    QDBusConnection missing(QStringLiteral("khat-test-unconnected"));
     PowerMonitor monitor(missing);
     QString error;
     QVERIFY(!monitor.subscribe(&error));

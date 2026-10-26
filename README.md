@@ -1,9 +1,21 @@
-# Gmail Notifier for GNOME
+# khat
 
 A minimal native C++/Qt 6 notifier for new Gmail inbox messages on Ubuntu GNOME.
 It polls the Gmail API with a low default frequency (3 hours), stores only the
 state needed for deduplication, and delivers notifications through the standard
 freedesktop notification service.
+
+## Naming
+
+The application is named **khat** everywhere: the executable, desktop entry,
+systemd unit, icon, configuration/state/runtime paths, notification IDs, and
+Secret Service namespace. The only retained historical identifier is the
+immutable Google Cloud project ID `your-project-id`. The OAuth client ID,
+API configuration, and `gmail.readonly` scope are unchanged.
+
+Data and tokens created before the rename are not imported automatically.
+Configure the OAuth client under `~/.config/khat` and authorize the account
+again.
 
 ## Status
 
@@ -39,13 +51,13 @@ ctest --test-dir build --output-on-failure
 
 ```sh
 # Open the settings window (the window can be closed; polling continues)
-./build/gmail-notifier --settings
+./build/khat --settings
 
 # Run without a window, as used by the systemd user service
-./build/gmail-notifier --background
+./build/khat --background
 
 # Ask a running instance for an immediate check
-./build/gmail-notifier --check-now
+./build/khat --check-now
 ```
 
 Only one notifier instance runs at a time. A second launch talks to the existing

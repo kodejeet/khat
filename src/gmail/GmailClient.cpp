@@ -81,7 +81,7 @@ QNetworkRequest GmailClient::makeRequest(const QUrl &url) const
 {
     QNetworkRequest request(url);
     request.setRawHeader("Accept", "application/json");
-    request.setRawHeader("User-Agent", "gmail-notifier/0.1");
+    request.setRawHeader("User-Agent", "khat/0.1");
     if (!m_accessToken.isEmpty()) {
         request.setRawHeader("Authorization",
                              QByteArrayLiteral("Bearer ") + m_accessToken.toUtf8());

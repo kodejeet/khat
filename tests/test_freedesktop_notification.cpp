@@ -81,7 +81,7 @@ private slots:
 
 void TestFreedesktopNotification::initTestCase()
 {
-    if (qEnvironmentVariableIsEmpty("GMAIL_NOTIFIER_TEST_PRIVATE_BUS")) {
+    if (qEnvironmentVariableIsEmpty("KHAT_TEST_PRIVATE_BUS")) {
         QSKIP("Run through ctest under dbus-run-session (private session bus only).");
     }
     QVERIFY2(QDBusConnection::sessionBus().isConnected(), "private session bus unavailable");
@@ -135,9 +135,9 @@ void TestFreedesktopNotification::sendsNotificationAndOpensOnDefaultAction()
     QTRY_COMPARE_WITH_TIMEOUT(server.received.size(), 1, 5000);
 
     const FakeNotificationServer::Received received = server.received.first();
-    QCOMPARE(received.appName, QStringLiteral("Gmail Notifier"));
+    QCOMPARE(received.appName, QStringLiteral("khat"));
     QCOMPARE(received.replacesId, 0u);
-    QCOMPARE(received.appIcon, QStringLiteral("gmail-notifier"));
+    QCOMPARE(received.appIcon, QStringLiteral("khat"));
     QCOMPARE(received.summary, QStringLiteral("Sender"));
     QCOMPARE(received.body, QStringLiteral("Subject &lt;update&gt;\nPreview"));
     const QStringList expectedActions{QStringLiteral("default"),
@@ -147,7 +147,7 @@ void TestFreedesktopNotification::sendsNotificationAndOpensOnDefaultAction()
     QCOMPARE(received.hints.value(QStringLiteral("category")).toString(),
              QStringLiteral("email"));
     QCOMPARE(received.hints.value(QStringLiteral("desktop-entry")).toString(),
-             QStringLiteral("gmail-notifier"));
+             QStringLiteral("khat"));
     QCOMPARE(received.timeout, -1);
 
     QTRY_COMPARE_WITH_TIMEOUT(sent.count(), 1, 5000);

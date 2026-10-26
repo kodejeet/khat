@@ -21,20 +21,20 @@ enum class RunMode
 namespace {
 int fail(const QString &message)
 {
-    QTextStream(stderr) << "gmail-notifier: " << message << '\n';
+    QTextStream(stderr) << "khat: " << message << '\n';
     return 1;
 }
 
 QIcon applicationIcon()
 {
-    const QIcon themed = QIcon::fromTheme(QStringLiteral("gmail-notifier"));
+    const QIcon themed = QIcon::fromTheme(QStringLiteral("khat"));
     if (!themed.isNull()) {
         return themed;
     }
 
     QIcon fallback;
     for (const int size : {16, 24, 32, 48, 64, 128, 256, 512}) {
-        fallback.addFile(QStringLiteral(":/icons/gmail-notifier-%1.png").arg(size),
+        fallback.addFile(QStringLiteral(":/icons/khat-%1.png").arg(size),
                          QSize(size, size));
     }
     return fallback;
@@ -44,16 +44,17 @@ QIcon applicationIcon()
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
-    QCoreApplication::setApplicationName(QStringLiteral("gmail-notifier"));
-    QCoreApplication::setApplicationVersion(QStringLiteral(GMAIL_NOTIFIER_VERSION));
-    QCoreApplication::setOrganizationName(QStringLiteral("GmailNotifier"));
-    QGuiApplication::setDesktopFileName(QStringLiteral("gmail-notifier"));
+    QCoreApplication::setApplicationName(QStringLiteral("khat"));
+    QCoreApplication::setApplicationVersion(QStringLiteral(KHAT_VERSION));
+    QCoreApplication::setOrganizationName(QStringLiteral("khat"));
+    QGuiApplication::setApplicationDisplayName(QStringLiteral("khat"));
+    QGuiApplication::setDesktopFileName(QStringLiteral("khat"));
     QApplication::setQuitOnLastWindowClosed(false);
     app.setWindowIcon(applicationIcon());
 
     QCommandLineParser parser;
     parser.setApplicationDescription(
-        QStringLiteral("Minimal native Gmail notifier for GNOME"));
+        QStringLiteral("khat: minimal native Gmail notifications for GNOME"));
     parser.addHelpOption();
     parser.addVersionOption();
 
@@ -105,8 +106,8 @@ int main(int argc, char *argv[])
         QString sendError;
         if (!instance.sendCommand(command, &response, &sendError)) {
             if (!instanceError.isEmpty()
-                && instanceError != QStringLiteral("Another gmail-notifier instance is "
-                                                   "already running.")) {
+                && instanceError != QStringLiteral("Another khat instance is already "
+                                                   "running.")) {
                 return fail(instanceError + QStringLiteral(" ") + sendError);
             }
             return fail(sendError);
@@ -120,7 +121,7 @@ int main(int argc, char *argv[])
     UnixSignalHandler signalHandler;
     QString signalError;
     if (!signalHandler.install(&signalError)) {
-        QTextStream(stderr) << "gmail-notifier: warning: " << signalError << '\n';
+        QTextStream(stderr) << "khat: warning: " << signalError << '\n';
     }
 
     AppControllerOptions options;

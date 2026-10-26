@@ -55,7 +55,7 @@ SettingsWindow::SettingsWindow(ConfigStore *config, StateDatabase *state, QWidge
     , m_config(config)
     , m_state(state)
 {
-    setWindowTitle(QStringLiteral("Gmail Notifier Settings"));
+    setWindowTitle(QStringLiteral("khat Settings"));
     setWindowIcon(QApplication::windowIcon());
     setMinimumSize(620, 440);
     resize(700, 500);

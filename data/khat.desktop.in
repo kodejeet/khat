@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=khat
+GenericName=Gmail notification settings
+Comment=Native notifications for new Gmail inbox messages
+Exec=@CMAKE_INSTALL_FULL_BINDIR@/khat --settings
+TryExec=@CMAKE_INSTALL_FULL_BINDIR@/khat
+Icon=khat
+Terminal=false
+Categories=Network;Email;
+Keywords=khat;Gmail;Email;Notifications;
+StartupNotify=true
+StartupWMClass=khat
+X-GNOME-UsesNotifications=true

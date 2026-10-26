@@ -36,7 +36,7 @@ QNetworkRequest OAuthTokenClient::makeRequest(const QUrl &url) const
     QNetworkRequest request(url);
     request.setRawHeader("Accept", "application/json");
     request.setRawHeader("Content-Type", "application/x-www-form-urlencoded");
-    request.setRawHeader("User-Agent", "gmail-notifier/0.1");
+    request.setRawHeader("User-Agent", "khat/0.1");
     request.setTransferTimeout(kTransferTimeoutMs);
     return request;
 }

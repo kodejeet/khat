@@ -67,7 +67,7 @@ public:
     {
         FakeItem item;
         item.path = path;
-        item.attributes.insert(QStringLiteral("application"), QStringLiteral("gmail-notifier"));
+        item.attributes.insert(QStringLiteral("application"), QStringLiteral("khat"));
         item.attributes.insert(QStringLiteral("account"), accountId);
         item.attributes.insert(QStringLiteral("type"), QStringLiteral("oauth-token"));
         item.label = QStringLiteral("locked test item");
@@ -362,7 +362,7 @@ private slots:
 
 void TestSecretService::initTestCase()
 {
-    if (qEnvironmentVariableIsEmpty("GMAIL_NOTIFIER_TEST_PRIVATE_BUS")) {
+    if (qEnvironmentVariableIsEmpty("KHAT_TEST_PRIVATE_BUS")) {
         QSKIP("Run through ctest under dbus-run-session (private session bus only).");
     }
     QVERIFY2(QDBusConnection::sessionBus().isConnected(), "private session bus unavailable");
@@ -390,9 +390,10 @@ void TestSecretService::savesLoadsReplacesAndRemoves()
 
     const FakeItem &stored = environment.service->collection()->items().first();
     QCOMPARE(stored.attributes.value(QStringLiteral("application")),
-             QStringLiteral("gmail-notifier"));
+             QStringLiteral("khat"));
     QCOMPARE(stored.attributes.value(QStringLiteral("account")),
              QStringLiteral("account-one"));
+    QCOMPARE(stored.label, QStringLiteral("khat token for account-one"));
     QCOMPARE(stored.contentType, QStringLiteral("application/json"));
     const QJsonObject storedJson = QJsonDocument::fromJson(stored.value).object();
     QCOMPARE(storedJson.value(QStringLiteral("access_token")).toString(),
@@ -438,7 +439,7 @@ void TestSecretService::savesLoadsReplacesAndRemoves()
 
 void TestSecretService::missingServiceFailsGracefully()
 {
-    QDBusConnection missing(QStringLiteral("gmail-notifier-test-unconnected"));
+    QDBusConnection missing(QStringLiteral("khat-test-unconnected"));
     SecretServiceTokenStore store(missing, false);
     QSignalSpy loaded(&store, &SecretServiceTokenStore::loaded);
 

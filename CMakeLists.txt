@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(GmailNotifier VERSION 0.1.0 LANGUAGES CXX)
+project(khat VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -13,7 +13,7 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Network Sql Widgets DBus)
 
 qt_standard_project_setup()
 
-add_library(gmailnotifier_core STATIC
+add_library(khat_core STATIC
     src/app/AppController.cpp
     src/app/AppController.h
     src/app/PowerMonitor.cpp
@@ -79,11 +79,11 @@ add_library(gmailnotifier_core STATIC
     src/ui/SettingsWindow.h
 )
 
-target_include_directories(gmailnotifier_core PUBLIC
+target_include_directories(khat_core PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-target_link_libraries(gmailnotifier_core PUBLIC
+target_link_libraries(khat_core PUBLIC
     Qt6::Core
     Qt6::DBus
     Qt6::Gui
@@ -92,30 +92,30 @@ target_link_libraries(gmailnotifier_core PUBLIC
     Qt6::Widgets
 )
 
-qt_add_executable(gmail-notifier
+qt_add_executable(khat
     src/main.cpp
 )
 
-qt_add_resources(gmail-notifier "application-icons"
+qt_add_resources(khat "application-icons"
     PREFIX "/icons"
     BASE "assets/icons"
     FILES
-        assets/icons/gmail-notifier-16.png
-        assets/icons/gmail-notifier-24.png
-        assets/icons/gmail-notifier-32.png
-        assets/icons/gmail-notifier-48.png
-        assets/icons/gmail-notifier-64.png
-        assets/icons/gmail-notifier-128.png
-        assets/icons/gmail-notifier-256.png
-        assets/icons/gmail-notifier-512.png
+        assets/icons/khat-16.png
+        assets/icons/khat-24.png
+        assets/icons/khat-32.png
+        assets/icons/khat-48.png
+        assets/icons/khat-64.png
+        assets/icons/khat-128.png
+        assets/icons/khat-256.png
+        assets/icons/khat-512.png
 )
 
-target_compile_definitions(gmail-notifier PRIVATE
-    GMAIL_NOTIFIER_VERSION="${PROJECT_VERSION}"
+target_compile_definitions(khat PRIVATE
+    KHAT_VERSION="${PROJECT_VERSION}"
 )
 
-target_link_libraries(gmail-notifier PRIVATE
-    gmailnotifier_core
+target_link_libraries(khat PRIVATE
+    khat_core
     Qt6::Core
     Qt6::Gui
     Qt6::Network
@@ -124,35 +124,35 @@ target_link_libraries(gmail-notifier PRIVATE
     Qt6::DBus
 )
 
-install(TARGETS gmail-notifier
+install(TARGETS khat
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
-set(GMAIL_NOTIFIER_DATA_DIR ${CMAKE_CURRENT_BINARY_DIR}/data)
+set(KHAT_DATA_DIR ${CMAKE_CURRENT_BINARY_DIR}/data)
 configure_file(
-    data/gmail-notifier.desktop.in
-    ${GMAIL_NOTIFIER_DATA_DIR}/gmail-notifier.desktop
+    data/khat.desktop.in
+    ${KHAT_DATA_DIR}/khat.desktop
     @ONLY
 )
 configure_file(
-    data/gmail-notifier.service.in
-    ${GMAIL_NOTIFIER_DATA_DIR}/gmail-notifier.service
+    data/khat.service.in
+    ${KHAT_DATA_DIR}/khat.service
     @ONLY
 )
 
-install(FILES ${GMAIL_NOTIFIER_DATA_DIR}/gmail-notifier.desktop
+install(FILES ${KHAT_DATA_DIR}/khat.desktop
     DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
 )
-install(FILES ${GMAIL_NOTIFIER_DATA_DIR}/gmail-notifier.service
+install(FILES ${KHAT_DATA_DIR}/khat.service
     DESTINATION ${CMAKE_INSTALL_DATADIR}/systemd/user
 )
 
-set(GMAIL_NOTIFIER_ICON_SIZES 16 22 24 32 48 64 128 256 512)
-foreach(icon_size IN LISTS GMAIL_NOTIFIER_ICON_SIZES)
+set(KHAT_ICON_SIZES 16 22 24 32 48 64 128 256 512)
+foreach(icon_size IN LISTS KHAT_ICON_SIZES)
     install(FILES
-        ${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/gmail-notifier-${icon_size}.png
+        ${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/khat-${icon_size}.png
         DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/${icon_size}x${icon_size}/apps
-        RENAME gmail-notifier.png
+        RENAME khat.png
     )
 endforeach()
 

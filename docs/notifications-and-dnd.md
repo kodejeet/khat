@@ -6,6 +6,7 @@ Verified on Ubuntu 26.04.1 LTS with GNOME Shell 50.1 on 2026-10-26.
 
 - Delivery uses the freedesktop.org `org.freedesktop.Notifications` session-bus
   interface through QtDBus. No browser is started when a message arrives.
+- The notification app name, desktop-entry hint, and icon name are all `khat`.
 - Each notification shows the sender (display name when the `From` header has
   one), the subject, an optional Gmail snippet, and the account email only when
   more than one account exists.

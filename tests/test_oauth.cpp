@@ -103,6 +103,7 @@ void TestOAuth::loopbackServerReceivesCallback()
         QUrl(server.redirectUri() + QStringLiteral("?code=test-code&state=test-state"))));
     QTRY_VERIFY_WITH_TIMEOUT(reply->isFinished(), 5000);
     QCOMPARE(reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt(), 200);
+    QVERIFY(reply->readAll().contains("khat"));
     reply->deleteLater();
 
     QTRY_COMPARE_WITH_TIMEOUT(received.count(), 1, 5000);

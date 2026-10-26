@@ -155,13 +155,13 @@ void SecretServiceTokenStore::save(const QString &accountId, const OAuthToken &t
 
                     QMap<QString, QString> attributes;
                     attributes.insert(QStringLiteral("application"),
-                                      QStringLiteral("gmail-notifier"));
+                                      QStringLiteral("khat"));
                     attributes.insert(QStringLiteral("account"), accountId);
                     attributes.insert(QStringLiteral("type"), QStringLiteral("oauth-token"));
 
                     QVariantMap properties;
                     properties.insert(QStringLiteral("org.freedesktop.Secret.Item.Label"),
-                                      QStringLiteral("Gmail Notifier token for %1")
+                                      QStringLiteral("khat token for %1")
                                           .arg(accountId));
                     properties.insert(QStringLiteral("org.freedesktop.Secret.Item.Attributes"),
                                       QVariant::fromValue(attributes));
@@ -296,7 +296,7 @@ void SecretServiceTokenStore::findItems(const QString &accountId, ItemsCallback 
         }
 
         QMap<QString, QString> attributes;
-        attributes.insert(QStringLiteral("application"), QStringLiteral("gmail-notifier"));
+        attributes.insert(QStringLiteral("application"), QStringLiteral("khat"));
         attributes.insert(QStringLiteral("account"), accountId);
 
         QDBusMessage message = QDBusMessage::createMethodCall(

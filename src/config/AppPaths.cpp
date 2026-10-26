@@ -28,7 +28,7 @@ QString runtimeBaseDir()
 {
     QString base = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
     if (base.isEmpty()) {
-        base = QDir::tempPath() + QStringLiteral("/gmail-notifier-")
+        base = QDir::tempPath() + QStringLiteral("/khat-")
             + QString::number(static_cast<qulonglong>(::getuid()));
     }
     return base;
@@ -37,7 +37,7 @@ QString runtimeBaseDir()
 
 AppPaths AppPaths::defaults()
 {
-    return fromConfigDir(configBaseDir() + QStringLiteral("/gmail-notifier"));
+    return fromConfigDir(configBaseDir() + QStringLiteral("/khat"));
 }
 
 AppPaths AppPaths::fromConfigDir(const QString &configDir)
@@ -46,7 +46,7 @@ AppPaths AppPaths::fromConfigDir(const QString &configDir)
     paths.configDir = QDir::cleanPath(configDir);
     paths.configFile = paths.configDir + QStringLiteral("/config.json");
     paths.oauthClientFile = paths.configDir + QStringLiteral("/oauth-client.json");
-    paths.stateFile = dataBaseDir() + QStringLiteral("/gmail-notifier/state.db");
-    paths.runtimeDir = runtimeBaseDir() + QStringLiteral("/gmail-notifier");
+    paths.stateFile = dataBaseDir() + QStringLiteral("/khat/state.db");
+    paths.runtimeDir = runtimeBaseDir() + QStringLiteral("/khat");
     return paths;
 }

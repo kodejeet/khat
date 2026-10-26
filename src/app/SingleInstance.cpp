@@ -83,8 +83,8 @@ bool SingleInstance::acquire(QString *error)
     if (!m_lock->tryLock(0)) {
         if (error) {
             *error = m_lock->error() == QLockFile::LockFailedError
-                ? QStringLiteral("Another gmail-notifier instance is already running.")
-                : QStringLiteral("Cannot acquire the gmail-notifier instance lock: %1")
+                ? QStringLiteral("Another khat instance is already running.")
+                : QStringLiteral("Cannot acquire the khat instance lock: %1")
                       .arg(m_lock->error() == QLockFile::PermissionError
                                ? QStringLiteral("permission denied")
                                : QStringLiteral("unavailable"));
@@ -100,7 +100,7 @@ bool SingleInstance::acquire(QString *error)
     m_server->setSocketOptions(QLocalServer::UserAccessOption);
     if (!m_server->listen(m_socketPath)) {
         if (error) {
-            *error = QStringLiteral("Cannot listen for gmail-notifier commands: %1")
+            *error = QStringLiteral("Cannot listen for khat commands: %1")
                          .arg(m_server->errorString());
         }
         delete m_server;
@@ -175,7 +175,7 @@ bool SingleInstance::sendCommand(const QString &command, QString *response,
             return;
         }
         if (elapsed.elapsed() >= timeoutMs) {
-            finish(false, QStringLiteral("Timed out waiting for the gmail-notifier instance."));
+            finish(false, QStringLiteral("Timed out waiting for the khat instance."));
             return;
         }
         socket.abort();
@@ -192,7 +192,7 @@ bool SingleInstance::sendCommand(const QString &command, QString *response,
     connect(&socket, &QLocalSocket::readyRead, &loop, [&] {
         buffer.append(socket.readAll());
         if (buffer.size() > kMaxResponseBytes) {
-            finish(false, QStringLiteral("The gmail-notifier instance response was too large."));
+            finish(false, QStringLiteral("The khat instance response was too large."));
             return;
         }
         const int newline = buffer.indexOf('\n');
@@ -210,11 +210,11 @@ bool SingleInstance::sendCommand(const QString &command, QString *response,
         } else if (text.startsWith(QStringLiteral("ok "))) {
             finish(true, text.mid(3));
         } else if (text == QStringLiteral("error")) {
-            finish(false, QStringLiteral("The gmail-notifier instance rejected the command."));
+            finish(false, QStringLiteral("The khat instance rejected the command."));
         } else if (text.startsWith(QStringLiteral("error "))) {
             finish(false, text.mid(6));
         } else {
-            finish(false, QStringLiteral("The gmail-notifier instance sent an invalid response."));
+            finish(false, QStringLiteral("The khat instance sent an invalid response."));
         }
     });
 
@@ -231,17 +231,17 @@ bool SingleInstance::sendCommand(const QString &command, QString *response,
                 }
                 if (socketError == QLocalSocket::PeerClosedError && buffer.isEmpty()) {
                     finish(false,
-                           QStringLiteral("The gmail-notifier instance closed the connection "
+                           QStringLiteral("The khat instance closed the connection "
                                           "without a response."));
                     return;
                 }
-                finish(false, QStringLiteral("Cannot contact the gmail-notifier instance: %1")
+                finish(false, QStringLiteral("Cannot contact the khat instance: %1")
                                   .arg(socket.errorString()));
             });
 
     connect(&reconnect, &QTimer::timeout, &loop, attempt);
     connect(&deadline, &QTimer::timeout, &loop, [&] {
-        finish(false, QStringLiteral("Timed out waiting for the gmail-notifier instance."));
+        finish(false, QStringLiteral("Timed out waiting for the khat instance."));
     });
 
     deadline.start(timeoutMs);

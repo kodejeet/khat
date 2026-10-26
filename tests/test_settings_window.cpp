@@ -45,6 +45,7 @@ void TestSettingsWindow::notificationsPersist()
     QVERIFY2(openDatabase(db), "cannot open state database");
 
     SettingsWindow window(&store, &db);
+    QCOMPARE(window.windowTitle(), QStringLiteral("khat Settings"));
     auto *enabled = window.findChild<QCheckBox *>(QStringLiteral("notificationsEnabledCheck"));
     auto *interval = window.findChild<QSpinBox *>(QStringLiteral("pollIntervalSpin"));
     auto *updates = window.findChild<QCheckBox *>(QStringLiteral("includeUpdatesCheck"));

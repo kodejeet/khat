@@ -18,7 +18,7 @@ private slots:
 
 static QString iconPath(const QString &name)
 {
-    return QString::fromUtf8(GMAIL_NOTIFIER_SOURCE_DIR "/assets/icons/") + name;
+    return QString::fromUtf8(KHAT_SOURCE_DIR "/assets/icons/") + name;
 }
 
 void TestIconAssets::sourceIsSquareMaster()
@@ -33,7 +33,7 @@ void TestIconAssets::pngSizeLadder()
     const QList<int> sizes{16, 22, 24, 32, 48, 64, 128, 256, 512, 1024};
     for (const int size : sizes) {
         const QString path =
-            iconPath(QStringLiteral("gmail-notifier-%1.png").arg(size));
+            iconPath(QStringLiteral("khat-%1.png").arg(size));
         QVERIFY2(QFileInfo::exists(path), qPrintable(path));
 
         QImageReader reader(path);
@@ -48,7 +48,7 @@ void TestIconAssets::pngSizeLadder()
 
 void TestIconAssets::windowsIcon()
 {
-    QFile file(iconPath(QStringLiteral("gmail-notifier.ico")));
+    QFile file(iconPath(QStringLiteral("khat.ico")));
     QVERIFY2(file.open(QIODevice::ReadOnly), qPrintable(file.errorString()));
 
     const QByteArray header = file.read(6);
@@ -69,7 +69,7 @@ void TestIconAssets::windowsIcon()
 
 void TestIconAssets::macosIcon()
 {
-    QFile file(iconPath(QStringLiteral("gmail-notifier.icns")));
+    QFile file(iconPath(QStringLiteral("khat.icns")));
     QVERIFY2(file.open(QIODevice::ReadOnly), qPrintable(file.errorString()));
     QCOMPARE(file.read(4), QByteArray("icns"));
     QVERIFY(file.size() > 100000);

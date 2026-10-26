@@ -1,8 +1,8 @@
 # Resource use, API cost, and troubleshooting
 
-This document covers what the notifier sends to Google, how much it stores, how
-to diagnose common failures, and how it behaves with suspend, logout, and Do
-Not Disturb.
+This document covers what khat sends to Google, how much it stores, how to
+diagnose common failures, and how it behaves with suspend, logout, and Do Not
+Disturb.
 
 All figures below are estimates based on the current implementation and
 Google's published limits on 2026-10-26. They are not a promise of future quota,
@@ -127,9 +127,9 @@ optional settings window. It does not busy-loop.
 
 | Data | Location | Approximate size |
 | --- | --- | --- |
-| App settings | `~/.config/gmail-notifier/config.json` | Under 1 KiB |
-| OAuth client | `~/.config/gmail-notifier/oauth-client.json` | Under 1 KiB |
-| SQLite state | `~/.local/share/gmail-notifier/state.db` | Grows with seen messages |
+| App settings | `~/.config/khat/config.json` | Under 1 KiB |
+| OAuth client | `~/.config/khat/oauth-client.json` | Under 1 KiB |
+| SQLite state | `~/.local/share/khat/state.db` | Grows with seen messages |
 | Tokens | Secret Service / GNOME Keyring | One small item per account |
 
 The SQLite state stores one row per seen message per account: two IDs, two
@@ -166,8 +166,8 @@ last error. Closing the settings window does not stop polling.
 For the systemd service:
 
 ```sh
-journalctl --user -u gmail-notifier.service -b --no-pager
-journalctl --user -u gmail-notifier.service --since "24 hours ago" --no-pager
+journalctl --user -u khat.service -b --no-pager
+journalctl --user -u khat.service --since "24 hours ago" --no-pager
 ```
 
 Application logs contain operational errors such as HTTP status, configuration
@@ -180,7 +180,7 @@ verbose network logging in a bug report without reviewing it first.
 ### The app starts but never checks Gmail
 
 If no account is authorized, this is expected: the app starts idle. Verify
-`~/.config/gmail-notifier/oauth-client.json` exists, has valid non-placeholder
+`~/.config/khat/oauth-client.json` exists, has valid non-placeholder
 values, mode `0600`, and the exact `gmail.readonly` scope. Also confirm at least
 one account is present, enabled, and authorized. The refresh token must be
 available from Secret Service, so keep the login keyring unlocked while the app
@@ -205,7 +205,7 @@ before editing.
 
 ### `Cannot open state database` or SQLite errors
 
-Check that `~/.local/share/gmail-notifier` exists, is writable by your user, and
+Check that `~/.local/share/khat` exists, is writable by your user, and
 has not been replaced with a file. The Qt SQLite driver (`QSQLITE`) must be
 available; `qt6-base-dev` normally provides it. Do not loosen permissions to
 world-writable. If the database is corrupt, stop the app, back up `state.db` and
@@ -268,7 +268,7 @@ While offline, the app defers checks rather than failing repeatedly. Manual
 checks are refused with a message that the check will run after reconnection.
 Reconnecting starts a check immediately. If the desktop's online signal is
 wrong, real request failures still trigger backoff. Check NetworkManager and
-`systemctl --user status gmail-notifier.service` if checks never resume.
+`systemctl --user status khat.service` if checks never resume.
 
 ### Notifications do not appear
 
@@ -311,14 +311,14 @@ The unit is installed but not enabled. Run:
 
 ```sh
 systemctl --user daemon-reload
-systemctl --user enable --now gmail-notifier.service
-systemctl --user status gmail-notifier.service
+systemctl --user enable --now khat.service
+systemctl --user status khat.service
 ```
 
 The unit is bound to `graphical-session.target`. If it starts before the
 session's notification or keyring services are ready, `Restart=on-failure`
 retries according to systemd policy. Check the journal. See
-[Install, run, and remove Gmail Notifier](installation.md).
+[Install, run, and remove khat](installation.md).
 
 ### A second launch exits immediately
 
@@ -326,7 +326,7 @@ That is intentional. One process owns a lock and a private socket; a second
 `--settings` asks the first process to show its window, and a second
 `--background` pings the owner and exits. If the owner is unhealthy, stop the
 stale process and remove only the socket under
-`$XDG_RUNTIME_DIR/gmail-notifier/` if it remains. Do not remove another
+`$XDG_RUNTIME_DIR/khat/` if it remains. Do not remove another
 application's runtime files.
 
 ## Suspend, logout, and Do Not Disturb
@@ -367,7 +367,7 @@ application's runtime files.
 
 ## Related documentation
 
-- [Install, run, and remove Gmail Notifier](installation.md)
+- [Install, run, and remove khat](installation.md)
 - [Google Cloud and OAuth setup](google-oauth-setup.md)
 - [Notifications and Do Not Disturb](notifications-and-dnd.md)
 - [GNOME Online Accounts investigation](goa-investigation.md)

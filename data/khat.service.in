@@ -1,11 +1,11 @@
 [Unit]
-Description=Gmail Notifier
+Description=khat - native Gmail notifications
 After=graphical-session.target
 PartOf=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/gmail-notifier --background
+ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/khat --background
 Restart=on-failure
 RestartSec=5s
 TimeoutStopSec=10s

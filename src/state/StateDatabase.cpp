@@ -18,7 +18,7 @@ std::atomic<quint64> g_connectionCounter{0};
 
 QString nextConnectionName()
 {
-    return QStringLiteral("gmail-notifier-state-%1")
+    return QStringLiteral("khat-state-%1")
         .arg(g_connectionCounter.fetch_add(1));
 }
 } // namespace

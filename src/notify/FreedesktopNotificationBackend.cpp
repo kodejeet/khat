@@ -71,14 +71,14 @@ bool FreedesktopNotificationBackend::notify(const NotificationContent &content,
     hints.insert(QStringLiteral("urgency"),
                  QVariant::fromValue<uchar>(static_cast<uchar>(qBound(0, content.urgency, 2))));
     hints.insert(QStringLiteral("category"), QStringLiteral("email"));
-    hints.insert(QStringLiteral("desktop-entry"), QStringLiteral("gmail-notifier"));
+    hints.insert(QStringLiteral("desktop-entry"), QStringLiteral("khat"));
 
     const QString actionLabel = content.actionLabel.isEmpty()
         ? QStringLiteral("Open in Gmail")
         : content.actionLabel;
     const QStringList actions{QStringLiteral("default"), actionLabel};
 
-    message << QStringLiteral("Gmail Notifier") << 0u << QStringLiteral("gmail-notifier")
+    message << QStringLiteral("khat") << 0u << QStringLiteral("khat")
             << content.summary << content.body << actions << hints << kDefaultTimeoutMs;
     message.setAutoStartService(m_autoStartService);
 
