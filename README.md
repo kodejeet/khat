@@ -67,6 +67,8 @@ no authorized accounts exist until at least one account is connected.
   click behavior, and the GNOME 50.1 DND limitation
 - [GNOME Online Accounts investigation](docs/goa-investigation.md) — why GOA
   tokens are not used
+- [Application icon assets](assets/icons/README.md) — source artwork, installed
+  PNG size ladder, and Windows/macOS icon containers
 
 ## Security
 

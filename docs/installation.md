@@ -71,6 +71,13 @@ The default per-user installation creates:
 - `~/.local/bin/gmail-notifier`
 - `~/.local/share/applications/gmail-notifier.desktop`
 - `~/.local/share/systemd/user/gmail-notifier.service`
+- `~/.local/share/icons/hicolor/<size>x<size>/apps/gmail-notifier.png` for
+  16, 22, 24, 32, 48, 64, 128, 256, and 512 pixel icons
+
+The desktop entry and notifications use the icon name `gmail-notifier`, which
+resolves through the hicolor theme. The source artwork and the Windows `.ico`
+and macOS `.icns` containers are kept in `assets/icons`; the GNOME install rules
+install only the PNG size ladder.
 
 `~/.local/bin` is normally on `PATH` on Ubuntu. Run `hash -r` in an already open
 shell after the first install. The systemd unit is installed but not enabled.
@@ -183,6 +190,7 @@ All paths are per-user:
 | OAuth tokens | Secret Service, not a file in these directories |
 | Runtime lock and socket | `$XDG_RUNTIME_DIR/gmail-notifier/` |
 | Desktop entry | `~/.local/share/applications/gmail-notifier.desktop` |
+| Application icons | `~/.local/share/icons/hicolor/*/apps/gmail-notifier.png` |
 | systemd user unit | `~/.local/share/systemd/user/gmail-notifier.service` |
 
 Settings are saved atomically. The polling interval accepts 5–1440 minutes and
@@ -241,6 +249,7 @@ Remove the installed program and launchers:
 ```sh
 rm -f "$HOME/.local/bin/gmail-notifier"
 rm -f "$HOME/.local/share/applications/gmail-notifier.desktop"
+rm -f "$HOME/.local/share/icons/hicolor/"*/apps/gmail-notifier.png
 rm -f "$HOME/.local/share/systemd/user/gmail-notifier.service"
 rmdir --ignore-fail-on-non-empty "$HOME/.local/share/systemd/user" 2>/dev/null || true
 ```
@@ -273,7 +282,8 @@ applications may use them. It also does not remove the `~/.local` prefix.
 
 If the application was installed under `/usr/local` instead, the installed paths
 are `/usr/local/bin/gmail-notifier`,
-`/usr/local/share/applications/gmail-notifier.desktop`, and
+`/usr/local/share/applications/gmail-notifier.desktop`,
+`/usr/local/share/icons/hicolor/*/apps/gmail-notifier.png`, and
 `/usr/local/share/systemd/user/gmail-notifier.service`; removing those requires
 the corresponding administrative permission. The recommended per-user install
 never needs root.
