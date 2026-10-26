@@ -8,3 +8,4 @@ function(add_gmailnotifier_test name source)
 endfunction()
 
 add_gmailnotifier_test(test-config test_config.cpp)
+add_gmailnotifier_test(test-state test_state.cpp)

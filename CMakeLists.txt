@@ -26,6 +26,9 @@ add_library(gmailnotifier_core STATIC
     src/config/OAuthClientConfig.h
     src/config/OAuthClientStore.cpp
     src/config/OAuthClientStore.h
+    src/model/MessageSummary.h
+    src/state/StateDatabase.cpp
+    src/state/StateDatabase.h
 )
 
 target_include_directories(gmailnotifier_core PUBLIC
@@ -34,6 +37,7 @@ target_include_directories(gmailnotifier_core PUBLIC
 
 target_link_libraries(gmailnotifier_core PUBLIC
     Qt6::Core
+    Qt6::Sql
 )
 
 qt_add_executable(gmail-notifier
