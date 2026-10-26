@@ -15,6 +15,7 @@ add_gmailnotifier_test(test-backoff test_backoff.cpp)
 add_gmailnotifier_test(test-scheduler test_scheduler.cpp)
 add_gmailnotifier_test(test-connectivity test_connectivity.cpp)
 add_gmailnotifier_test(test-notifications test_notifications.cpp)
+add_gmailnotifier_test(test-settings-window test_settings_window.cpp)
 
 find_program(DBUS_RUN_SESSION dbus-run-session)
 if(DBUS_RUN_SESSION)

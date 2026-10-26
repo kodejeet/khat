@@ -51,6 +51,8 @@ add_library(gmailnotifier_core STATIC
     src/sync/SyncScheduler.h
     src/sync/SyncService.cpp
     src/sync/SyncService.h
+    src/ui/SettingsWindow.cpp
+    src/ui/SettingsWindow.h
 )
 
 target_include_directories(gmailnotifier_core PUBLIC
@@ -63,6 +65,7 @@ target_link_libraries(gmailnotifier_core PUBLIC
     Qt6::Gui
     Qt6::Network
     Qt6::Sql
+    Qt6::Widgets
 )
 
 qt_add_executable(gmail-notifier
