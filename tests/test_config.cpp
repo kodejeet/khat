@@ -6,6 +6,7 @@
 
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTemporaryDir>
@@ -27,6 +28,8 @@ private slots:
     void oauthValidationRejectsRemoteHttp();
     void oauthRoundTrip();
     void oauthConfigRejectsTokens();
+    void oauthAcceptsDownloadedClientFormat();
+    void oauthDownloadedFormatRejectsTokens();
     void appPathsAreNamespaced();
 };
 
@@ -204,6 +207,54 @@ void TestConfig::oauthConfigRejectsTokens()
                   QStringLiteral("123456-demo.apps.googleusercontent.com"));
     object.insert(QStringLiteral("client_secret"), QStringLiteral("local-installed-app-secret"));
     object.insert(QStringLiteral("refresh_token"), QStringLiteral("must-not-live-here"));
+
+    OAuthClientConfig parsed;
+    QStringList errors;
+    QVERIFY(!oauthClientConfigFromJson(object, &parsed, &errors));
+    QVERIFY(errors.join(' ').contains(QStringLiteral("refresh_token")));
+}
+
+void TestConfig::oauthAcceptsDownloadedClientFormat()
+{
+    QJsonObject installed;
+    installed.insert(QStringLiteral("client_id"),
+                     QStringLiteral("123456-demo.apps.googleusercontent.com"));
+    installed.insert(QStringLiteral("client_secret"),
+                     QStringLiteral("local-installed-app-secret"));
+    installed.insert(QStringLiteral("auth_uri"),
+                     QStringLiteral("https://accounts.google.com/o/oauth2/v2/auth"));
+    installed.insert(QStringLiteral("token_uri"),
+                     QStringLiteral("https://oauth2.googleapis.com/token"));
+    installed.insert(QStringLiteral("project_id"), QStringLiteral("demo-project"));
+    installed.insert(QStringLiteral("redirect_uris"),
+                     QJsonArray{QStringLiteral("http://localhost")});
+
+    QJsonObject object;
+    object.insert(QStringLiteral("installed"), installed);
+
+    OAuthClientConfig parsed;
+    QStringList errors;
+    QVERIFY2(oauthClientConfigFromJson(object, &parsed, &errors),
+             qPrintable(errors.join(' ')));
+    QCOMPARE(parsed.clientId, QStringLiteral("123456-demo.apps.googleusercontent.com"));
+    QCOMPARE(parsed.clientSecret, QStringLiteral("local-installed-app-secret"));
+    QCOMPARE(parsed.authUri, QUrl(QStringLiteral("https://accounts.google.com/o/oauth2/v2/auth")));
+    QCOMPARE(parsed.tokenUri, QUrl(QStringLiteral("https://oauth2.googleapis.com/token")));
+    QCOMPARE(parsed.revokeUri, QUrl(QStringLiteral("https://oauth2.googleapis.com/revoke")));
+    QCOMPARE(parsed.scope, QStringLiteral("https://www.googleapis.com/auth/gmail.readonly"));
+}
+
+void TestConfig::oauthDownloadedFormatRejectsTokens()
+{
+    QJsonObject installed;
+    installed.insert(QStringLiteral("client_id"),
+                     QStringLiteral("123456-demo.apps.googleusercontent.com"));
+    installed.insert(QStringLiteral("client_secret"),
+                     QStringLiteral("local-installed-app-secret"));
+    installed.insert(QStringLiteral("refresh_token"), QStringLiteral("must-not-live-here"));
+
+    QJsonObject object;
+    object.insert(QStringLiteral("installed"), installed);
 
     OAuthClientConfig parsed;
     QStringList errors;

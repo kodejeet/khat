@@ -31,6 +31,19 @@ bool oauthClientConfigFromJson(const QJsonObject &object, OAuthClientConfig *con
     QStringList localErrors;
     OAuthClientConfig parsed = defaultOAuthClientConfig();
 
+    // Google's "Download JSON" action wraps Desktop client values in an
+    // "installed" object. Accept that shape as well as the flat example file.
+    QJsonObject source = object;
+    const QJsonValue installed = object.value(QStringLiteral("installed"));
+    if (!installed.isUndefined()) {
+        if (!installed.isObject()) {
+            localErrors << QStringLiteral("installed must be an object.");
+        } else if (!object.contains(QStringLiteral("client_id"))
+                   && !object.contains(QStringLiteral("client_secret"))) {
+            source = installed.toObject();
+        }
+    }
+
     static const QStringList forbiddenKeys = {
         QStringLiteral("access_token"),
         QStringLiteral("refresh_token"),
@@ -38,33 +51,34 @@ bool oauthClientConfigFromJson(const QJsonObject &object, OAuthClientConfig *con
         QStringLiteral("token"),
         QStringLiteral("expires_in"),
     };
+    const bool nestedSource = source != object;
     for (const QString &key : forbiddenKeys) {
-        if (object.contains(key)) {
+        if (object.contains(key) || (nestedSource && source.contains(key))) {
             localErrors << QStringLiteral("%1 must not be stored in the OAuth client file; "
                                           "tokens belong in Secret Service.")
                                .arg(key);
         }
     }
 
-    readString(object, QStringLiteral("client_id"), &parsed.clientId, &localErrors);
-    readString(object, QStringLiteral("client_secret"), &parsed.clientSecret, &localErrors);
+    readString(source, QStringLiteral("client_id"), &parsed.clientId, &localErrors);
+    readString(source, QStringLiteral("client_secret"), &parsed.clientSecret, &localErrors);
 
     QString authUri;
-    if (readString(object, QStringLiteral("auth_uri"), &authUri, &localErrors)
+    if (readString(source, QStringLiteral("auth_uri"), &authUri, &localErrors)
         && !authUri.isEmpty()) {
         parsed.authUri = QUrl(authUri);
     }
     QString tokenUri;
-    if (readString(object, QStringLiteral("token_uri"), &tokenUri, &localErrors)
+    if (readString(source, QStringLiteral("token_uri"), &tokenUri, &localErrors)
         && !tokenUri.isEmpty()) {
         parsed.tokenUri = QUrl(tokenUri);
     }
     QString revokeUri;
-    if (readString(object, QStringLiteral("revoke_uri"), &revokeUri, &localErrors)
+    if (readString(source, QStringLiteral("revoke_uri"), &revokeUri, &localErrors)
         && !revokeUri.isEmpty()) {
         parsed.revokeUri = QUrl(revokeUri);
     }
-    readString(object, QStringLiteral("scope"), &parsed.scope, &localErrors);
+    readString(source, QStringLiteral("scope"), &parsed.scope, &localErrors);
 
     localErrors += validateOAuthClientConfig(parsed);
     if (!localErrors.isEmpty()) {

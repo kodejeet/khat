@@ -88,7 +88,10 @@ ${EDITOR:-vi} "$HOME/.config/gmail-notifier/oauth-client.json"
 ```
 
 Replace every placeholder with values from a Google Cloud **Desktop app** OAuth
-client. Keep the scope exactly:
+client. Alternatively, save Google's downloaded Desktop client JSON as
+`oauth-client.json`; the loader accepts its `{"installed": {...}}` wrapper and
+supplies the default `revoke_uri` and read-only scope when they are absent. Keep
+the scope exactly:
 
 ```
 https://www.googleapis.com/auth/gmail.readonly

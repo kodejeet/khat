@@ -176,9 +176,11 @@ The downloaded file looks similar to this (values abbreviated):
 }
 ```
 
-The application does not read this nested file directly. Copy the required
-values into its own flat configuration file in the next section. Do not commit
-the downloaded file either.
+The application accepts this downloaded file directly when it is saved as
+`oauth-client.json`: the loader unwraps the `installed` object, uses the
+default `revoke_uri` and `gmail.readonly` scope when they are absent, and still
+rejects token fields. Alternatively, use the flat format in the next section.
+Do not commit either file.
 
 ## 5. Create the local OAuth client file
 
@@ -219,9 +221,11 @@ Notes:
   with installed software. This project still keeps the file mode `0600` and
   refuses to log it. The current validator requires `client_secret` because a
   downloaded Desktop client includes one; it is not an authorization token.
-- The loader rejects placeholder text, a client ID with the wrong suffix,
-  non-HTTPS endpoints (loopback HTTP is allowed only for local tests), broader
-  scopes, and token fields such as `access_token` or `refresh_token`.
+- The loader accepts either the flat fields above or Google's downloaded
+  `{"installed": {...}}` wrapper. It rejects placeholder text, a client ID with
+  the wrong suffix, non-HTTPS endpoints (loopback HTTP is allowed only for local
+  tests), broader scopes, and token fields such as `access_token` or
+  `refresh_token` at either level.
 - Keep `oauth-client.json` separate from `config.json`. Account refresh tokens
   belong in Secret Service, never in either JSON file.
 - To check only JSON syntax without displaying secrets:
