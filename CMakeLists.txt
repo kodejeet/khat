@@ -25,6 +25,8 @@ add_library(gmailnotifier_core STATIC
     src/auth/AccessTokenProvider.h
     src/auth/OAuthLoopbackServer.cpp
     src/auth/OAuthLoopbackServer.h
+    src/auth/OAuthManager.cpp
+    src/auth/OAuthManager.h
     src/auth/OAuthPkce.cpp
     src/auth/OAuthPkce.h
     src/auth/OAuthToken.cpp
