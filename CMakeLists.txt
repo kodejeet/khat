@@ -34,6 +34,15 @@ add_library(gmailnotifier_core STATIC
     src/gmail/GmailQuery.cpp
     src/gmail/GmailQuery.h
     src/model/MessageSummary.h
+    src/notify/FreedesktopNotificationBackend.cpp
+    src/notify/FreedesktopNotificationBackend.h
+    src/notify/NotificationBackend.h
+    src/notify/NotificationContent.cpp
+    src/notify/NotificationContent.h
+    src/notify/NotificationDispatcher.cpp
+    src/notify/NotificationDispatcher.h
+    src/notify/NotificationService.cpp
+    src/notify/NotificationService.h
     src/state/StateDatabase.cpp
     src/state/StateDatabase.h
     src/sync/BackoffPolicy.cpp
@@ -50,6 +59,8 @@ target_include_directories(gmailnotifier_core PUBLIC
 
 target_link_libraries(gmailnotifier_core PUBLIC
     Qt6::Core
+    Qt6::DBus
+    Qt6::Gui
     Qt6::Network
     Qt6::Sql
 )

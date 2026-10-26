@@ -271,6 +271,10 @@ void TestGmail::gmailMessageUrlEncoding()
 {
     QCOMPARE(gmailMessageUrl(QStringLiteral("abc-123_XYZ")),
              QStringLiteral("https://mail.google.com/mail/u/0/#inbox/abc-123_XYZ"));
+    QCOMPARE(gmailMessageUrl(QStringLiteral("abc-123_XYZ"),
+                             QStringLiteral("user+tag@example.com")),
+             QStringLiteral("https://mail.google.com/mail/?authuser=user%2Btag%40example.com"
+                            "#inbox/abc-123_XYZ"));
 }
 
 QTEST_GUILESS_MAIN(TestGmail)
