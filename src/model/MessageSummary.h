@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QMetaType>
 #include <QString>
 #include <QStringList>
 
@@ -13,3 +14,5 @@ struct MessageSummary
     QString snippet;
     QStringList labelIds;
 };
+
+Q_DECLARE_METATYPE(MessageSummary)
