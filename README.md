@@ -9,12 +9,13 @@ freedesktop notification service.
 
 The background application, OAuth account flow, Secret Service token storage,
 Gmail synchronization, native notifications, single-instance command socket,
-suspend/resume handling, and minimal settings window are implemented and tested
-against local OAuth/Gmail fakes and a private-bus Secret Service fake. Real
-Google authorization, consent, keyring writes, and live Gmail requests were not
-exercised while building this project. You must supply a Desktop OAuth client
-and explicitly authorize each account. Until then the notifier starts idle and
-never contacts Gmail. See `PROGRESS.md` for tested and blocked work.
+suspend/resume handling, and minimal settings window are implemented. Automated
+tests use local OAuth/Gmail fakes and a private-bus Secret Service fake. On
+2026-10-27, OAuth consent, token exchange, Secret Service storage, and live
+read-only Gmail synchronization were verified with a locally supplied Desktop
+client and explicit user consent. You must supply your own Desktop OAuth client
+and authorize each account; until then the notifier starts idle and never
+contacts Gmail. See `PROGRESS.md` for tested, verified, and remaining work.
 
 ## Requirements
 

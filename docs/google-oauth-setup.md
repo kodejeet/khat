@@ -18,10 +18,13 @@ document if the console differs.
 - [implemented, tested] The application settings, separate OAuth client file,
   placeholder detection, HTTPS endpoint validation, and exact-scope validation.
   See `config/oauth-client.example.json`.
-- [blocked on your credentials and consent] No real Google authorization,
-  consent screen, token exchange, keyring write, or Gmail API call has been
-  performed while building this project. The application starts idle until you
-  provide a Google Cloud client and authorize an account.
+- [verified live on 2026-10-27] Consent, token exchange, Secret Service storage,
+  Gmail profile lookup, the first Gmail baseline, and a subsequent read-only
+  check completed with a locally supplied Desktop client and explicit user
+  consent. The account, mode-0600 config/state files, and an unlocked Secret
+  Service item were verified without reading or printing token values. The
+  automated tests still never contact Google or write the real keyring. A live
+  notification for a newly arrived message has not yet been observed.
 
 Do not paste real credentials into this repository, an issue, a chat, or a log.
 The only file that should contain them is your local
@@ -306,11 +309,11 @@ To use the notifier with a real mailbox, you must:
    and complete Google's consent screen;
 6. optionally enable the systemd user service after authorization succeeds.
 
-Those steps require your credentials and consent. They are intentionally not
-performed by the automated tests or by the implementation process. The test
-suite uses loopback fake OAuth and Gmail endpoints and a private D-Bus fake
-Secret Service, so it never contacts Google or writes to your real keyring. No
-real token, consent result, or keyring item exists in this repository.
+Those steps require your credentials and consent. The automated test suite uses
+loopback fake OAuth and Gmail endpoints and a private D-Bus fake Secret Service,
+so it never contacts Google or writes to your real keyring. The live verification
+used a user-supplied client and an explicitly consented account. No real token,
+consent result, or keyring item exists in this repository.
 
 ## Related documentation
 

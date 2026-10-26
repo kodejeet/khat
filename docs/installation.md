@@ -14,12 +14,13 @@ Qt 6.4 packages are too old.
 
 The build, OAuth account management, Secret Service token storage, Gmail
 synchronization, native notifications, settings window, background process,
-single-instance socket, and suspend/offline handling are implemented and tested
-against local fakes and a private-bus Secret Service fake. Real Google consent,
-token exchange, keyring writes, and live Gmail requests were intentionally not
-performed. The application starts idle until you provide an OAuth client and
-authorize an account. The OAuth client file described below cannot authorize an
-account by itself.
+single-instance socket, and suspend/offline handling are implemented. Automated
+tests use local fakes and a private-bus Secret Service fake. On 2026-10-27,
+OAuth consent, token exchange, keyring storage, and live read-only Gmail
+synchronization were verified with a locally supplied Desktop client and
+explicit user consent. The application starts idle until you provide an OAuth
+client and authorize an account. The OAuth client file described below cannot
+authorize an account by itself.
 
 ## 1. Install build dependencies
 
