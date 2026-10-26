@@ -5,6 +5,7 @@
 #include "state/StateDatabase.h"
 #include "sync/SyncScheduler.h"
 
+#include <QApplication>
 #include <QCheckBox>
 #include <QDateTime>
 #include <QFont>
@@ -12,7 +13,6 @@
 #include <QHBoxLayout>
 #include <QHash>
 #include <QHeaderView>
-#include <QIcon>
 #include <QLabel>
 #include <QLocale>
 #include <QMessageBox>
@@ -56,7 +56,7 @@ SettingsWindow::SettingsWindow(ConfigStore *config, StateDatabase *state, QWidge
     , m_state(state)
 {
     setWindowTitle(QStringLiteral("Gmail Notifier Settings"));
-    setWindowIcon(QIcon::fromTheme(QStringLiteral("mail-unread")));
+    setWindowIcon(QApplication::windowIcon());
     setMinimumSize(620, 440);
     resize(700, 500);
     buildUi();

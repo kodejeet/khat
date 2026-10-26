@@ -8,6 +8,7 @@
 #include <QCommandLineParser>
 #include <QIcon>
 #include <QSessionManager>
+#include <QSize>
 #include <QTextStream>
 
 enum class RunMode
@@ -23,6 +24,21 @@ int fail(const QString &message)
     QTextStream(stderr) << "gmail-notifier: " << message << '\n';
     return 1;
 }
+
+QIcon applicationIcon()
+{
+    const QIcon themed = QIcon::fromTheme(QStringLiteral("gmail-notifier"));
+    if (!themed.isNull()) {
+        return themed;
+    }
+
+    QIcon fallback;
+    for (const int size : {16, 24, 32, 48, 64, 128, 256, 512}) {
+        fallback.addFile(QStringLiteral(":/icons/gmail-notifier-%1.png").arg(size),
+                         QSize(size, size));
+    }
+    return fallback;
+}
 } // namespace
 
 int main(int argc, char *argv[])
@@ -33,7 +49,7 @@ int main(int argc, char *argv[])
     QCoreApplication::setOrganizationName(QStringLiteral("GmailNotifier"));
     QGuiApplication::setDesktopFileName(QStringLiteral("gmail-notifier"));
     QApplication::setQuitOnLastWindowClosed(false);
-    app.setWindowIcon(QIcon::fromTheme(QStringLiteral("mail-unread")));
+    app.setWindowIcon(applicationIcon());
 
     QCommandLineParser parser;
     parser.setApplicationDescription(

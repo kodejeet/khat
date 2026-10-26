@@ -137,7 +137,7 @@ void TestFreedesktopNotification::sendsNotificationAndOpensOnDefaultAction()
     const FakeNotificationServer::Received received = server.received.first();
     QCOMPARE(received.appName, QStringLiteral("Gmail Notifier"));
     QCOMPARE(received.replacesId, 0u);
-    QCOMPARE(received.appIcon, QStringLiteral("mail-unread"));
+    QCOMPARE(received.appIcon, QStringLiteral("gmail-notifier"));
     QCOMPARE(received.summary, QStringLiteral("Sender"));
     QCOMPARE(received.body, QStringLiteral("Subject &lt;update&gt;\nPreview"));
     const QStringList expectedActions{QStringLiteral("default"),

@@ -78,7 +78,7 @@ bool FreedesktopNotificationBackend::notify(const NotificationContent &content,
         : content.actionLabel;
     const QStringList actions{QStringLiteral("default"), actionLabel};
 
-    message << QStringLiteral("Gmail Notifier") << 0u << QStringLiteral("mail-unread")
+    message << QStringLiteral("Gmail Notifier") << 0u << QStringLiteral("gmail-notifier")
             << content.summary << content.body << actions << hints << kDefaultTimeoutMs;
     message.setAutoStartService(m_autoStartService);
 

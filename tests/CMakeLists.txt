@@ -21,6 +21,10 @@ add_gmailnotifier_test(test-settings-window test_settings_window.cpp)
 add_gmailnotifier_test(test-app-controller test_app_controller.cpp)
 add_gmailnotifier_test(test-single-instance test_single_instance.cpp)
 add_gmailnotifier_test(test-unix-signal test_unix_signal.cpp)
+add_gmailnotifier_test(test-icon-assets test_icon_assets.cpp)
+target_compile_definitions(test-icon-assets PRIVATE
+    GMAIL_NOTIFIER_SOURCE_DIR="${PROJECT_SOURCE_DIR}"
+)
 
 find_program(DBUS_RUN_SESSION dbus-run-session)
 if(DBUS_RUN_SESSION)

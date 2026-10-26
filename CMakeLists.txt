@@ -96,6 +96,20 @@ qt_add_executable(gmail-notifier
     src/main.cpp
 )
 
+qt_add_resources(gmail-notifier "application-icons"
+    PREFIX "/icons"
+    BASE "assets/icons"
+    FILES
+        assets/icons/gmail-notifier-16.png
+        assets/icons/gmail-notifier-24.png
+        assets/icons/gmail-notifier-32.png
+        assets/icons/gmail-notifier-48.png
+        assets/icons/gmail-notifier-64.png
+        assets/icons/gmail-notifier-128.png
+        assets/icons/gmail-notifier-256.png
+        assets/icons/gmail-notifier-512.png
+)
+
 target_compile_definitions(gmail-notifier PRIVATE
     GMAIL_NOTIFIER_VERSION="${PROJECT_VERSION}"
 )
@@ -132,6 +146,15 @@ install(FILES ${GMAIL_NOTIFIER_DATA_DIR}/gmail-notifier.desktop
 install(FILES ${GMAIL_NOTIFIER_DATA_DIR}/gmail-notifier.service
     DESTINATION ${CMAKE_INSTALL_DATADIR}/systemd/user
 )
+
+set(GMAIL_NOTIFIER_ICON_SIZES 16 22 24 32 48 64 128 256 512)
+foreach(icon_size IN LISTS GMAIL_NOTIFIER_ICON_SIZES)
+    install(FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/gmail-notifier-${icon_size}.png
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/${icon_size}x${icon_size}/apps
+        RENAME gmail-notifier.png
+    )
+endforeach()
 
 if(BUILD_TESTING)
     find_package(Qt6 6.5 REQUIRED COMPONENTS Test)
