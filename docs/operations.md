@@ -19,14 +19,23 @@ all enabled accounts that have an access token.
 2. **Baseline.** The app lists every message matching the Gmail query and records
    those IDs as already seen. It does not fetch metadata and does not notify.
    Existing mail therefore cannot produce a burst of notifications.
-3. **Regular check.** The app lists matching messages from the last successful
-   synchronization minus a 24-hour overlap. IDs already recorded are skipped.
-   Only unseen IDs get one metadata request each. New rows are inserted before
-   notifications are dispatched.
-4. **Notification.** A new matching message produces one notification. A
+3. **Regular check.** If the account has a stored history cursor, the app asks
+   Gmail's change feed (`users.history.list`, type `messageAdded`, label
+   `INBOX`) for messages that arrived since the previous check — this also
+   makes manual "Check Now" immediate instead of depending on Google's message
+   search index catching up. IDs already recorded are skipped. If Google
+   returns HTTP 404 (the cursor is older than the retention window), the app
+   falls back to listing matching messages from the last successful
+   synchronization minus a 24-hour overlap. Only unseen IDs get one metadata
+   request each. New rows are inserted before notifications are dispatched.
+4. **History cursor capture.** After any listing-based check (the baseline or
+   a 404 fallback) succeeds, the app performs one field-masked profile read to
+   learn the current `historyId` and stores it. History-based checks advance
+   the cursor from the change feed itself and need no extra request.
+5. **Notification.** A new matching message produces one notification. A
    message ID is unique per account, so repeated checks and restarts do not
    notify twice.
-5. **Next check.** A successful check schedules the next one after the
+6. **Next check.** A successful check schedules the next one after the
    configured interval (5–1440 minutes, default 180). Any failed account makes
    the whole check unsuccessful for scheduling purposes, so the next attempt
    uses bounded exponential backoff. A later success resets the backoff.
@@ -53,9 +62,10 @@ per-method costs used by this app are:
 
 | Operation | Quota units | When |
 | --- | ---: | --- |
-| `users.messages.list` | 5 per page | Every check (plus extra pages if needed) |
+| `users.history.list` | 5 per page | Every check that has a valid cursor (plus extra pages if needed) |
+| `users.messages.list` | 5 per page | Baseline checks and after a history cursor aged out (plus extra pages) |
 | `users.messages.get` (`format=metadata`) | 20 per message | Only for a not-yet-seen matching message |
-| `users.getProfile` | 1 | Once per interactive authorization |
+| `users.getProfile` (field-masked) | 1 | Once per interactive authorization, plus once per listing-based check to capture the history cursor |
 
 Google's published limits checked for this project are 1,200,000 units/minute
 per project, 6,000 units/minute per user per project, and a daily billing
@@ -68,14 +78,15 @@ than a hard free quota.
 
 A 180-minute interval gives approximately eight scheduled checks per account
 per day, excluding the startup check, manual checks, reconnects, and retries.
-Counting one startup check, one account uses roughly nine list requests per day
-when no new mail arrives:
+Counting one startup check, an account with a valid cursor uses roughly nine
+history requests per day when no new mail arrives; listing-based checks (the
+baseline, or after a cursor aged out) cost the same per check:
 
 | Scenario per day | Requests | Quota units |
 | --- | ---: | ---: |
-| No new matching mail | 9 list | 45 |
-| 20 new matching messages | 9 list + 20 metadata | 445 |
-| 100 new matching messages | 9 list + 100 metadata | 2,045 |
+| No new matching mail | 9 history (or list) | 45 |
+| 20 new matching messages | 9 history + 20 metadata (one listing replaces one history call and adds one profile read) | 445 |
+| 100 new matching messages | 9 history + 100 metadata | 2,045 |
 
 These numbers assume one list page per check. More than 100 matching messages
 in the 24-hour overlap require another list page (5 units each). A very large
@@ -147,12 +158,13 @@ according to the desktop's settings.
 
 ### Network
 
-A no-new-mail check downloads one field-masked list response, typically a few
-KiB. Each new message adds one metadata response containing only `From`,
-`Subject`, `internalDate`, labels, ID, and `snippet`, typically a few KiB. Exact
-sizes depend on Gmail and header lengths. No attachments, MIME parts, or full
-bodies are requested. HTTPS certificate validation uses Qt's normal system
-trust store.
+A no-new-mail check downloads one field-masked history response (or one
+field-masked list response on listing-based checks), typically a few KiB. Each
+new message adds one metadata response containing only `From`, `Subject`,
+`internalDate`, labels, ID, and `snippet`, typically a few KiB. Exact sizes
+depend on Gmail and header lengths. No attachments, MIME parts, or full bodies
+are requested. HTTPS certificate validation uses Qt's normal system trust
+store.
 
 ## Status and logs
 
@@ -370,4 +382,4 @@ application's runtime files.
 - [Install, run, and remove khat](installation.md)
 - [Google Cloud and OAuth setup](google-oauth-setup.md)
 - [Notifications and Do Not Disturb](notifications-and-dnd.md)
-- [GNOME Online Accounts investigation](goa-investigation.md)
+- [Architecture and internals](architecture.md)

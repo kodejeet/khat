@@ -30,3 +30,11 @@ CMakeLists.txt.user*
 
 # Temporary test output
 *.log
+
+# Local-only tooling (never published)
+/tools/
+
+# Maintainer-internal working notes (kept locally, not published)
+PROGRESS.md
+SPEC.md
+docs/goa-investigation.md

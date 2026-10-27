@@ -9,11 +9,6 @@
 - `khat.icns` — macOS icon container with the standard resolution set
   up to 1024 pixels
 
-Regenerate every variant after changing `icon.png`:
-
-```sh
-python3 tools/generate-icons.py
-```
-
-The generator requires Python 3 and Pillow. The build itself uses the committed
-PNG files and does not require Python or Pillow.
+Regenerate every variant after changing `icon.png` (the icon generator script
+is part of the maintainer's local tooling, not this repository; the committed
+PNG files and the build do not require it):

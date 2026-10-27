@@ -6,10 +6,7 @@ present. The application runs as one process in the user's graphical session and
 uses a user-level systemd service for autostart.
 
 The application, executable, desktop entry, systemd unit, icon, and local data
-paths all use the name `khat`. Configuration and tokens created before the
-rename are not imported; configure and authorize the account again as described
-below. The only retained historical identifier is the immutable Google Cloud
-project ID `your-project-id`.
+paths all use the name `khat`.
 
 Verified on Ubuntu 26.04.1 LTS, GNOME Shell 50.1, Qt 6.10.2, CMake 4.2.3, and
 GCC 15.2. The build requires Qt 6.5 or newer and CMake 3.21 or newer; Ubuntu
@@ -56,14 +53,27 @@ ctest --test-dir build --output-on-failure
 
 The default check interval is 180 minutes, and the test suite never contacts
 Google. The Gmail tests use a loopback fake server. Notification tests use a
-private or fake D-Bus service, and the full suite records the actual result in
-`PROGRESS.md`.
+private or fake D-Bus service, and the full suite is run locally with
+`ctest --test-dir build`.
 
 If `dbus-run-session` is unavailable, the two D-Bus test executables are not
 registered by CMake; all other tests still run. Install `dbus-daemon` first if
 you want the complete suite.
 
 ## 3. Install for the current user
+
+Alternatively, `install.sh` automates steps 1–3 (plus dependency checks, icon
+cache refresh, and enabling the systemd user service):
+
+```sh
+./install.sh                       # default prefix: $HOME/.local
+./install.sh --no-systemd          # skip the systemd user unit
+curl -fsSL https://github.com/kodejeet/khat/raw/main/install.sh | bash
+```
+
+`uninstall.sh` removes the per-user installation again (see step 9).
+
+Manual per-user install:
 
 Keep the same install prefix used for configuration; the desktop file and
 systemd unit contain the absolute installed binary path:
@@ -232,11 +242,20 @@ systemctl --user start khat.service
 
 Application settings, OAuth configuration, OAuth tokens, and SQLite state are
 not removed by an upgrade. Back up the two configuration files and the state
-database if the account history matters. Data from before the khat rename is
-not detected or migrated; configure the OAuth client and authorize accounts
-again under the khat paths.
+Back up the two configuration files and the state database if the account
+history matters.
 
 ## 9. Remove the application completely
+
+The script below performs all removal steps in this section (stop the service,
+delete installed files, refresh desktop integration). It keeps user data by
+default; `--purge` also deletes `~/.config/khat` and `~/.local/share/khat`:
+
+```sh
+./uninstall.sh --prefix="$HOME/.local" --purge
+```
+
+For a manual removal, work through the steps below.
 
 Remove accounts through the settings window first. Removing an account deletes
 its local synchronization state and its Secret Service token, and the
@@ -300,4 +319,4 @@ never needs root.
 - [Google Cloud and OAuth setup](google-oauth-setup.md)
 - [Resource use, API cost, and troubleshooting](operations.md)
 - [Notifications and Do Not Disturb](notifications-and-dnd.md)
-- [GNOME Online Accounts investigation](goa-investigation.md)
+- [Architecture and internals](architecture.md)

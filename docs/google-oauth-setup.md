@@ -54,8 +54,7 @@ loopback redirect on `127.0.0.1`; no public callback URL is required.
 
 1. Open <https://console.cloud.google.com/projectcreate>.
 2. Create a project and select it. The project ID is permanent and does not have
-   to match the app name. The current project uses
-   `your-project-id`; do not change that ID.
+   to match the app name; any ID works.
 3. Keep the project ID and project number for your own reference. The
    application does not need them.
 
@@ -322,7 +321,7 @@ consent result, or keyring item exists in this repository.
 - [Install, run, and remove khat](installation.md)
 - [Resource use, API cost, and troubleshooting](operations.md)
 - [Notifications and Do Not Disturb](notifications-and-dnd.md)
-- [GNOME Online Accounts investigation](goa-investigation.md)
+- [Architecture and internals](architecture.md)
 
 ## References
 
