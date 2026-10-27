@@ -257,7 +257,8 @@ void TestOAuth::gmailProfileFetchesEmail()
         if (url.path() == QStringLiteral("/gmail/v1/users/me/profile")
             && authorization == QByteArrayLiteral("Bearer profile-token")) {
             return FakeGmailServer::Response{
-                200, QByteArrayLiteral("{\"emailAddress\":\"User@Example.com\"}")};
+                200, QByteArrayLiteral("{\"emailAddress\":\"User@Example.com\","
+                                       "\"historyId\":\"742\"}")};
         }
         return FakeGmailServer::Response{401, QByteArrayLiteral("{}")};
     };
@@ -272,10 +273,11 @@ void TestOAuth::gmailProfileFetchesEmail()
     client.fetchProfile();
     QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 5000);
     QCOMPARE(ready.first().at(0).toString(), QStringLiteral("User@Example.com"));
+    QCOMPARE(ready.first().at(1).toLongLong(), qint64(742));
     QCOMPARE(failed.count(), 0);
     QCOMPARE(server.requests.size(), 1);
     QCOMPARE(server.requests.first().url.query(),
-             QStringLiteral("fields=emailAddress"));
+             QStringLiteral("fields=emailAddress,historyId"));
 }
 
 QTEST_GUILESS_MAIN(TestOAuth)

@@ -18,6 +18,7 @@ private slots:
     void emptyMessageIdRollsBack();
     void deleteAccountCascades();
     void futureSchemaRejected();
+    void schemaV1MigratesToV2();
     void fileIsOwnerOnly();
 };
 
@@ -223,6 +224,75 @@ void TestState::futureSchemaRejected()
     QString error;
     QVERIFY(!db.open(&error));
     QVERIFY(error.contains(QStringLiteral("newer")));
+}
+
+// A version-1 database predates the Gmail history cursor. Opening it must
+// migrate the schema in place: user_version advances, the stored account rows
+// survive untouched, and the new column is immediately writable.
+void TestState::schemaV1MigratesToV2()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("legacy.db"));
+
+    const QString connectionName = QStringLiteral("legacy-schema-test");
+    {
+        QSqlDatabase legacy = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connectionName);
+        legacy.setDatabaseName(path);
+        QVERIFY(legacy.open());
+        QSqlQuery query(legacy);
+        QVERIFY(query.exec(QStringLiteral(
+            "CREATE TABLE accounts ("
+            "  account_id TEXT PRIMARY KEY,"
+            "  email TEXT NOT NULL,"
+            "  baseline_done INTEGER NOT NULL DEFAULT 0,"
+            "  last_sync_epoch INTEGER,"
+            "  last_attempt_epoch INTEGER,"
+            "  last_error TEXT NOT NULL DEFAULT ''"
+            ")")));
+        QVERIFY(query.exec(QStringLiteral(
+            "CREATE TABLE seen_messages ("
+            "  account_id TEXT NOT NULL REFERENCES accounts(account_id) ON DELETE CASCADE,"
+            "  message_id TEXT NOT NULL,"
+            "  internal_date INTEGER NOT NULL,"
+            "  first_seen_epoch INTEGER NOT NULL,"
+            "  notified INTEGER NOT NULL DEFAULT 0,"
+            "  PRIMARY KEY (account_id, message_id)"
+            ")")));
+        QVERIFY(query.exec(QStringLiteral(
+            "INSERT INTO accounts (account_id, email, baseline_done, last_sync_epoch)"
+            " VALUES ('acct', 'user@example.com', 1, 1234)")));
+        QVERIFY(query.exec(QStringLiteral(
+            "INSERT INTO seen_messages (account_id, message_id, internal_date,"
+            " first_seen_epoch) VALUES ('acct', 'old-1', 42, 43)")));
+        QVERIFY(query.exec(QStringLiteral("PRAGMA user_version = 1")));
+        legacy.close();
+    }
+    QSqlDatabase::removeDatabase(connectionName);
+
+    StateDatabase db(path);
+    QString error;
+    QVERIFY2(db.open(&error), qPrintable(error));
+
+    AccountState state;
+    QVERIFY2(db.accountState(QStringLiteral("acct"), &state, &error), qPrintable(error));
+    QVERIFY(state.baselineDone);
+    QCOMPARE(state.lastSyncEpoch, qint64(1234));
+    QCOMPARE(state.email, QStringLiteral("user@example.com"));
+    QCOMPARE(state.historyId, qint64(0));
+    QCOMPARE(db.countSeenMessages(QStringLiteral("acct")), 1);
+
+    QVERIFY2(db.setAccountHistoryId(QStringLiteral("acct"), 900, &error),
+             qPrintable(error));
+    QVERIFY2(db.accountState(QStringLiteral("acct"), &state, &error), qPrintable(error));
+    QCOMPARE(state.historyId, qint64(900));
+
+    // New accounts still get the migrated table with the cursor column.
+    QVERIFY2(db.ensureAccount(QStringLiteral("acct-two"), QStringLiteral("x@example.com"),
+                              &error),
+             qPrintable(error));
+    QVERIFY2(db.accountState(QStringLiteral("acct-two"), &state, &error), qPrintable(error));
+    QCOMPARE(state.historyId, qint64(0));
 }
 
 void TestState::fileIsOwnerOnly()

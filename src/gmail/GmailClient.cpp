@@ -4,10 +4,24 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonParseError>
+#include <QSet>
 #include <QUrlQuery>
 
 namespace {
 constexpr int kMaxErrorBodyBytes = 64 * 1024;
+
+// Gmail serializes int64 fields (internalDate, historyId) as JSON strings but
+// also tolerates numeric fields; accept both.
+qint64 parseIntegerField(const QJsonValue &value)
+{
+    if (value.isDouble()) {
+        return static_cast<qint64>(value.toDouble());
+    }
+    if (value.isString()) {
+        return value.toString().toLongLong();
+    }
+    return 0;
+}
 
 QString headerValue(const QJsonObject &payload, const QString &name)
 {
@@ -52,6 +66,7 @@ GmailClient::GmailClient(QNetworkAccessManager *network, QObject *parent)
     , m_apiBaseUrl(QStringLiteral("https://gmail.googleapis.com/gmail/v1"))
 {
     qRegisterMetaType<GmailListPage>("GmailListPage");
+    qRegisterMetaType<GmailHistoryPage>("GmailHistoryPage");
     qRegisterMetaType<MessageSummary>("MessageSummary");
     qRegisterMetaType<GmailError>("GmailError");
 }
@@ -145,6 +160,41 @@ void GmailClient::fetchMessage(const QString &messageId)
     });
 }
 
+void GmailClient::listHistory(qint64 startHistoryId, int maxResults, const QString &pageToken)
+{
+    if (m_accessToken.isEmpty()) {
+        emit requestFailed({GmailErrorKind::NoToken, 0, 0,
+                            QStringLiteral("No Gmail access token is available.")});
+        return;
+    }
+    if (startHistoryId <= 0) {
+        emit requestFailed({GmailErrorKind::InvalidRequest, 0, 0,
+                            QStringLiteral("No Gmail history position is available.")});
+        return;
+    }
+
+    QUrl url = endpoint(QStringLiteral("users/me/history"));
+    QUrlQuery urlQuery;
+    urlQuery.addQueryItem(QStringLiteral("startHistoryId"), QString::number(startHistoryId));
+    urlQuery.addQueryItem(QStringLiteral("historyTypes"), QStringLiteral("messageAdded"));
+    urlQuery.addQueryItem(QStringLiteral("labelId"), QStringLiteral("INBOX"));
+    urlQuery.addQueryItem(QStringLiteral("maxResults"),
+                          QString::number(qBound(1, maxResults, 500)));
+    urlQuery.addQueryItem(
+        QStringLiteral("fields"),
+        QStringLiteral("historyId,nextPageToken,history(messagesAdded(message(id,threadId)))"));
+    if (!pageToken.isEmpty()) {
+        urlQuery.addQueryItem(QStringLiteral("pageToken"), pageToken);
+    }
+    url.setQuery(urlQuery);
+
+    QNetworkReply *reply = m_network->get(makeRequest(url));
+    connect(reply, &QNetworkReply::finished, this, [this, reply] {
+        handleHistoryReply(reply);
+        reply->deleteLater();
+    });
+}
+
 void GmailClient::fetchProfile()
 {
     if (m_accessToken.isEmpty()) {
@@ -155,7 +205,8 @@ void GmailClient::fetchProfile()
 
     QUrl url = endpoint(QStringLiteral("users/me/profile"));
     QUrlQuery urlQuery;
-    urlQuery.addQueryItem(QStringLiteral("fields"), QStringLiteral("emailAddress"));
+    urlQuery.addQueryItem(QStringLiteral("fields"),
+                          QStringLiteral("emailAddress,historyId"));
     url.setQuery(urlQuery);
 
     QNetworkReply *reply = m_network->get(makeRequest(url));
@@ -233,6 +284,70 @@ GmailError GmailClient::errorFromReply(QNetworkReply *reply, const QByteArray &b
         break;
     }
     return error;
+}
+
+void GmailClient::handleHistoryReply(QNetworkReply *reply)
+{
+    const QByteArray body = reply->readAll().left(kMaxErrorBodyBytes);
+    const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+
+    if (reply->error() != QNetworkReply::NoError || status < 200 || status > 299) {
+        emit requestFailed(errorFromReply(reply, body));
+        return;
+    }
+
+    QJsonParseError parseError;
+    const QJsonDocument document = QJsonDocument::fromJson(body, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+        emit requestFailed({GmailErrorKind::InvalidResponse, status, 0,
+                            QStringLiteral("Gmail API returned malformed history JSON.")});
+        return;
+    }
+
+    const QJsonObject root = document.object();
+    GmailHistoryPage page;
+    page.historyId = parseIntegerField(root.value(QStringLiteral("historyId")));
+
+    const QJsonValue historyValue = root.value(QStringLiteral("history"));
+    if (!historyValue.isUndefined()) {
+        if (!historyValue.isArray()) {
+            emit requestFailed(
+                {GmailErrorKind::InvalidResponse, status, 0,
+                 QStringLiteral("Gmail history response was not an array.")});
+            return;
+        }
+        QSet<QString> seenIds;
+        for (const QJsonValue &entryValue : historyValue.toArray()) {
+            const QJsonArray added =
+                entryValue.toObject().value(QStringLiteral("messagesAdded")).toArray();
+            for (const QJsonValue &addedValue : added) {
+                const QJsonObject message =
+                    addedValue.toObject().value(QStringLiteral("message")).toObject();
+                MessageSummary summary;
+                summary.id = message.value(QStringLiteral("id")).toString();
+                if (summary.id.isEmpty()) {
+                    // Gmail can report structural events without a usable
+                    // message; the metadata phase is what matters here.
+                    continue;
+                }
+                summary.threadId = message.value(QStringLiteral("threadId")).toString();
+                summary.labelIds = QStringList();
+                for (const QJsonValue &label : message.value(QStringLiteral("labelIds")).toArray()) {
+                    if (label.isString()) {
+                        summary.labelIds.append(label.toString());
+                    }
+                }
+                if (seenIds.contains(summary.id)) {
+                    continue;
+                }
+                seenIds.insert(summary.id);
+                page.added.append(summary);
+            }
+        }
+    }
+
+    page.nextPageToken = root.value(QStringLiteral("nextPageToken")).toString();
+    emit historyPageReady(page);
 }
 
 void GmailClient::handleListReply(QNetworkReply *reply)
@@ -359,5 +474,8 @@ void GmailClient::handleProfileReply(QNetworkReply *reply)
                                            "address.")});
         return;
     }
-    emit profileReady(email);
+
+    const qint64 historyId =
+        parseIntegerField(document.object().value(QStringLiteral("historyId")));
+    emit profileReady(email, historyId);
 }

@@ -239,6 +239,14 @@ void AppController::setupOAuth()
             &AppController::handleAuthorizationFailed);
     connect(manager, &OAuthManager::authorizationRequired, this,
             &AppController::handleAuthorizationRequired);
+    connect(manager, &OAuthManager::tokenRefreshed, this, [this](const QString &accountId) {
+        const QString label = emailForAccount(accountId);
+        qInfo().noquote() << "Google authorization refreshed for"
+                          << (label.isEmpty() ? accountId : label) << ".";
+        if (m_accountMessageIsError) {
+            showAccountMessage(QString());
+        }
+    });
     connect(manager, &OAuthManager::tokenRefreshFailed, this,
             [this](const QString &accountId, const QString &error) {
                 const QString label = emailForAccount(accountId);
@@ -404,7 +412,8 @@ void AppController::handleAuthorizationRequired(const QString &accountId,
     QString stateError;
     if (!m_state.markSyncError(
             accountId, QDateTime::currentSecsSinceEpoch(),
-            QStringLiteral("Google authorization expired. Reauthorize the account. %1")
+            QStringLiteral("Google authorization expired. Select the account under "
+                           "Accounts and use Reauthorize to sign in again. %1")
                 .arg(error),
             &stateError)) {
         qWarning().noquote() << "Could not record the authorization error:" << stateError;
@@ -414,13 +423,20 @@ void AppController::handleAuthorizationRequired(const QString &accountId,
         m_settingsWindow->refresh();
     }
     showAccountMessage(
-        QStringLiteral("Google authorization for %1 requires reauthorization: %2")
+        QStringLiteral("Google authorization for %1 expired. Select the account in the "
+                       "Accounts tab and use Reauthorize to sign in again. (%2)")
             .arg(accountLabel, error),
         true);
 }
 
 void AppController::handleSyncFinished(const SyncResult &result)
 {
+    if (result.success && m_accountMessageIsError) {
+        // A previous failure explanation (for example a rejected refresh) is
+        // stale as soon as an account synchronizes again; the per-account
+        // status in the Accounts tab stays authoritative either way.
+        showAccountMessage(QString());
+    }
     if (!m_oauthManager || result.errorKind != GmailErrorKind::Unauthorized) {
         return;
     }

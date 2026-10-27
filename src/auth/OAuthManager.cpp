@@ -7,6 +7,7 @@
 #include "gmail/GmailClient.h"
 
 #include <QCryptographicHash>
+#include <QDateTime>
 #include <QDesktopServices>
 #include <QRegularExpression>
 #include <QTimer>
@@ -19,6 +20,12 @@ QString safeError(const QString &error)
 {
     return error.simplified().left(300);
 }
+
+// Refresh slightly before a token's expiry so a scheduled check never starts
+// with a token that is about to be rejected.
+constexpr qint64 kRefreshAheadMs = 5 * 60 * 1000;
+constexpr int kRefreshCooldownMs = 60 * 1000;
+constexpr int kRefreshCooldownCapMs = 30 * 60 * 1000;
 
 bool constantTimeEquals(const QString &left, const QString &right)
 {
@@ -231,6 +238,13 @@ bool OAuthManager::accessToken(const QString &accountId, QString *token) const
     if (it == m_tokens.cend() || !it->hasAccessToken()) {
         return false;
     }
+    // Google access tokens live for about an hour. An expired token is never
+    // handed out: housekeeping refreshes it proactively and the account simply
+    // becomes usable when the refreshed token replaces the cache entry. This
+    // avoids starting every session with a guaranteed HTTP 401.
+    if (it->isAccessTokenExpired()) {
+        return false;
+    }
     if (token) {
         *token = it->accessToken;
     }
@@ -427,8 +441,9 @@ void OAuthManager::handleTokenRequestFailed(const QString &requestId,
     }
 }
 
-void OAuthManager::handleProfileReady(const QString &emailAddress)
+void OAuthManager::handleProfileReady(const QString &emailAddress, qint64 historyId)
 {
+    Q_UNUSED(historyId)
     if (!m_flow || m_flow->phase != FlowPhase::FetchingProfile
         || sender() != m_profileClient) {
         return;
@@ -575,6 +590,7 @@ void OAuthManager::handleTokenLoaded(const QString &accountId, bool found,
     }
     if (!found) {
         m_tokens.remove(accountId);
+        stopProactiveRefresh(accountId);
         m_needsReauthorization.remove(accountId);
         emit tokenCacheChanged();
         maybeFinishInitialTokenLoad();
@@ -583,6 +599,10 @@ void OAuthManager::handleTokenLoaded(const QString &accountId, bool found,
 
     m_tokens.insert(accountId, token);
     m_needsReauthorization.remove(accountId);
+    // Refresh immediately instead of letting the first Gmail request die with
+    // an HTTP 401: a token that is expired when it is loaded means the daemon
+    // slept or restarted past the access-token lifetime.
+    scheduleProactiveRefresh(accountId);
     emit tokenCacheChanged();
     // Cached tokens must be visible before the application treats initial
     // loading as complete and starts polling.
@@ -609,6 +629,7 @@ void OAuthManager::handleTokenSaved(const QString &accountId, const QString &err
     }
     m_tokens.insert(accountId, m_flow->token);
     m_needsReauthorization.remove(accountId);
+    scheduleProactiveRefresh(accountId);
     emit tokenCacheChanged();
     finishAuthorization();
 }
@@ -634,6 +655,58 @@ void OAuthManager::handleTokenRemoved(const QString &accountId, const QString &e
     m_tokens.remove(accountId);
     m_needsReauthorization.remove(accountId);
     emit tokenRemoved(accountId, warning);
+}
+
+void OAuthManager::scheduleProactiveRefresh(const QString &accountId, int retryDelayMs)
+{
+    QTimer *timer = m_refreshTimers.value(accountId, nullptr);
+    if (!timer) {
+        if (!findAccountById(accountId)) {
+            return;
+        }
+        timer = new QTimer(this);
+        timer->setSingleShot(true);
+        const QString target = accountId;
+        connect(timer, &QTimer::timeout, timer, [this, target] {
+            refreshAccessToken(target);
+        });
+        m_refreshTimers.insert(accountId, timer);
+    }
+
+    // A reauthorization requirement or a removed token makes later requests
+    // pointless; refresh only helps for a token that can still be replaced.
+    if (m_needsReauthorization.contains(accountId)) {
+        stopProactiveRefresh(accountId);
+        return;
+    }
+    const OAuthToken token = m_tokens.value(accountId);
+    if (!token.hasRefreshToken() || !token.hasAccessToken()) {
+        stopProactiveRefresh(accountId);
+        return;
+    }
+    if (!token.expiresAt.isValid()) {
+        // Google always reports a lifetime for these tokens; if it is absent,
+        // rely on the Gmail-401 driven refresh instead.
+        stopProactiveRefresh(accountId);
+        return;
+    }
+
+    qint64 delayMs = token.expiresAt.toMSecsSinceEpoch()
+        - QDateTime::currentMSecsSinceEpoch() - kRefreshAheadMs;
+    if (delayMs <= 0) {
+        delayMs = retryDelayMs > 0 ? retryDelayMs : 0;
+    }
+    static const qint64 kMaxTimerMs = qint64(INT_MAX);
+    timer->start(static_cast<int>(qBound<qint64>(0, delayMs, kMaxTimerMs)));
+}
+
+void OAuthManager::stopProactiveRefresh(const QString &accountId)
+{
+    m_refreshRetryDelayMs.remove(accountId);
+    if (QTimer *timer = m_refreshTimers.take(accountId)) {
+        timer->stop();
+        timer->deleteLater();
+    }
 }
 
 bool OAuthManager::refreshAccessToken(const QString &accountId)
@@ -689,7 +762,9 @@ void OAuthManager::refreshFinished(const QString &accountId, const OAuthToken &t
 
     m_tokens.insert(accountId, updated);
     m_needsReauthorization.remove(accountId);
+    m_refreshRetryDelayMs.remove(accountId);
     emit tokenCacheChanged();
+    scheduleProactiveRefresh(accountId);
     if (m_store) {
         m_store->save(accountId, updated);
     }
@@ -703,6 +778,13 @@ void OAuthManager::refreshFailed(const QString &accountId, const OAuthError &err
         markReauthorizationRequired(accountId, safeError(error.message));
         return;
     }
+    // Retry the transparent refresh with a growing cooldown so a flaky network
+    // cannot hammer the endpoint, and so the scheduler keeps the account usable
+    // through its normal 401 fallback in the meantime.
+    int delay = m_refreshRetryDelayMs.value(accountId, kRefreshCooldownMs) * 2;
+    delay = qBound(kRefreshCooldownMs, delay, kRefreshCooldownCapMs);
+    m_refreshRetryDelayMs.insert(accountId, delay);
+    scheduleProactiveRefresh(accountId, delay);
     emit tokenRefreshFailed(accountId, safeError(error.message));
 }
 
@@ -711,6 +793,7 @@ void OAuthManager::markReauthorizationRequired(const QString &accountId,
 {
     m_refreshingAccounts.remove(accountId);
     m_tokens.remove(accountId);
+    stopProactiveRefresh(accountId);
     m_needsReauthorization.insert(accountId);
     if (m_store) {
         m_store->remove(accountId);
@@ -721,6 +804,7 @@ void OAuthManager::markReauthorizationRequired(const QString &accountId,
 
 void OAuthManager::removeAccountToken(const QString &accountId)
 {
+    stopProactiveRefresh(accountId);
     if (m_flow && m_flow->accountId == accountId) {
         failAuthorization(
             QStringLiteral("Authorization was cancelled because the account was removed."));
@@ -766,6 +850,7 @@ void OAuthManager::startCachedTokenRemoval(const QString &accountId,
                                            const OAuthToken &token)
 {
     m_tokens.remove(accountId);
+    stopProactiveRefresh(accountId);
     m_needsReauthorization.remove(accountId);
     emit tokenCacheChanged();
 
@@ -797,6 +882,7 @@ void OAuthManager::deleteStoredToken(const QString &accountId,
                                      const QString &warning)
 {
     m_tokens.remove(accountId);
+    stopProactiveRefresh(accountId);
     m_needsReauthorization.remove(accountId);
     emit tokenCacheChanged();
     if (!m_store) {

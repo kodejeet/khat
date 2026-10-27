@@ -117,6 +117,7 @@ class TestNotifications : public QObject
 
 private slots:
     void contentFormatting();
+    void sentenceTruncation();
     void senderDisplay();
     void serviceActivationAndUrlValidation();
     void dispatcherDeduplicatesAndHonorsConfig();
@@ -169,6 +170,58 @@ void TestNotifications::contentFormatting()
              QStringLiteral("abc") + QChar(0x2026));
     const QString emoji = QString::fromUtf8("\xF0\x9F\x98\x80");
     QCOMPARE(notificationTruncate(emoji, 1), QString(QChar(0x2026)));
+}
+
+void TestNotifications::sentenceTruncation()
+{
+    const QString ellipsis = QStringLiteral("…");
+
+    // A full message passes through unchanged; the banner then never grows
+    // larger than the text behind it.
+    QCOMPARE(notificationTruncateSentences(QStringLiteral("First sentence."), 160),
+             QStringLiteral("First sentence."));
+
+    // Oversized bodies keep whole sentences up to the limit.
+    QCOMPARE(notificationTruncateSentences(
+                 QStringLiteral("First sentence here. Second sentence continues."), 25),
+             QStringLiteral("First sentence here.") + ellipsis);
+    QCOMPARE(notificationTruncateSentences(
+                 QStringLiteral("Wow! Then more words follow here."), 9),
+             QStringLiteral("Wow!") + ellipsis);
+    QCOMPARE(notificationTruncateSentences(
+                 QStringLiteral("Really? Yes, later words."), 9),
+             QStringLiteral("Really?") + ellipsis);
+
+    // No sentence boundary inside the limit: fall back to a hard cut.
+    QCOMPARE(notificationTruncateSentences(QStringLiteral("abcdef"), 4),
+             QStringLiteral("abcd") + ellipsis);
+
+    // Abbreviation dots that run into the next word without whitespace are
+    // not sentence breaks.
+    QCOMPARE(notificationTruncateSentences(
+                 QStringLiteral("Release v1.2.3 shipped today without more words"), 14),
+             QStringLiteral("Release v1.2.3") + ellipsis);
+
+    // Sentence-terminating ellipsis characters also end a sentence without
+    // stacking another ellipsis.
+    QCOMPARE(notificationTruncateSentences(
+                 QStringLiteral("To be continued… and then truncated words follow"), 30),
+             QStringLiteral("To be continued…"));
+
+    // Empty slabs and tiny limits behave like notificationTruncate.
+    QCOMPARE(notificationTruncateSentences(QString(), 10), QString());
+    QCOMPARE(notificationTruncateSentences(QStringLiteral("word"), 0), QString());
+
+    // The selection ignores whitespace padding after a terminator.
+    QCOMPARE(notificationTruncateSentences(
+                 QStringLiteral("One. Two. Three more words slide past here"), 12),
+             QStringLiteral("One. Two.") + ellipsis);
+
+    // When a long first sentence runs past the limit with no terminator, the
+    // hard cut applies at the limit itself.
+    const QString longSentence = QStringLiteral("A very long unfinished sentence ");
+    QCOMPARE(notificationTruncateSentences(longSentence + longSentence, 40),
+             notificationTruncate(longSentence + longSentence, 40));
 }
 
 void TestNotifications::senderDisplay()

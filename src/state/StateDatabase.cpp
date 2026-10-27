@@ -12,7 +12,7 @@
 #include <utility>
 
 namespace {
-constexpr int kSchemaVersion = 1;
+constexpr int kSchemaVersion = 2;
 
 std::atomic<quint64> g_connectionCounter{0};
 
@@ -121,7 +121,21 @@ bool StateDatabase::checkSchemaVersion(QString *error)
                              .arg(kSchemaVersion));
         return false;
     }
-    return true;
+    return migrateSchema(version, error);
+}
+
+// Schema 1 installed the accounts/seen_messages tables without a history
+// cursor. Migration adds the column without touching stored rows.
+bool StateDatabase::migrateSchema(int version, QString *error)
+{
+    if (version >= kSchemaVersion) {
+        return true;
+    }
+    if (version == 1 && !exec(QStringLiteral(
+                              "ALTER TABLE accounts ADD COLUMN history_id INTEGER"), error)) {
+        return false;
+    }
+    return exec(QStringLiteral("PRAGMA user_version = %1").arg(kSchemaVersion), error);
 }
 
 bool StateDatabase::createSchema(QString *error)
@@ -133,7 +147,8 @@ bool StateDatabase::createSchema(QString *error)
                   "  baseline_done INTEGER NOT NULL DEFAULT 0,"
                   "  last_sync_epoch INTEGER,"
                   "  last_attempt_epoch INTEGER,"
-                  "  last_error TEXT NOT NULL DEFAULT ''"
+                  "  last_error TEXT NOT NULL DEFAULT '',"
+                  "  history_id INTEGER"
                   ")"),
               error)) {
         return false;
@@ -195,7 +210,7 @@ bool StateDatabase::accountState(const QString &accountId, AccountState *state,
     QSqlQuery query(m_db);
     query.prepare(QStringLiteral(
         "SELECT account_id, email, baseline_done, last_sync_epoch, last_attempt_epoch, "
-        "last_error FROM accounts WHERE account_id = ?"));
+        "last_error, history_id FROM accounts WHERE account_id = ?"));
     query.addBindValue(accountId);
     if (!query.exec()) {
         setError(error, QStringLiteral("Cannot read account state: %1")
@@ -213,6 +228,7 @@ bool StateDatabase::accountState(const QString &accountId, AccountState *state,
     state->lastSyncEpoch = query.value(3).isNull() ? 0 : query.value(3).toLongLong();
     state->lastAttemptEpoch = query.value(4).isNull() ? 0 : query.value(4).toLongLong();
     state->lastError = query.value(5).toString();
+    state->historyId = query.value(6).isNull() ? 0 : query.value(6).toLongLong();
     return true;
 }
 
@@ -227,7 +243,7 @@ QList<AccountState> StateDatabase::accountStates(QString *error)
     QSqlQuery query(m_db);
     if (!query.exec(QStringLiteral(
             "SELECT account_id, email, baseline_done, last_sync_epoch, "
-            "last_attempt_epoch, last_error FROM accounts ORDER BY email"))) {
+            "last_attempt_epoch, last_error, history_id FROM accounts ORDER BY email"))) {
         setError(error, QStringLiteral("Cannot list account state: %1")
                              .arg(query.lastError().text()));
         return states;
@@ -240,6 +256,7 @@ QList<AccountState> StateDatabase::accountStates(QString *error)
         state.lastSyncEpoch = query.value(3).isNull() ? 0 : query.value(3).toLongLong();
         state.lastAttemptEpoch = query.value(4).isNull() ? 0 : query.value(4).toLongLong();
         state.lastError = query.value(5).toString();
+        state.historyId = query.value(6).isNull() ? 0 : query.value(6).toLongLong();
         states.append(state);
     }
     return states;
@@ -430,6 +447,26 @@ bool StateDatabase::markSyncError(const QString &accountId, qint64 attemptEpoch,
     query.addBindValue(accountId);
     if (!query.exec()) {
         setError(error, QStringLiteral("Cannot record sync error: %1")
+                             .arg(query.lastError().text()));
+        return false;
+    }
+    return true;
+}
+
+bool StateDatabase::setAccountHistoryId(const QString &accountId, qint64 historyId,
+                                        QString *error)
+{
+    if (!isOpen()) {
+        setError(error, QStringLiteral("State database is not open."));
+        return false;
+    }
+    QSqlQuery query(m_db);
+    query.prepare(QStringLiteral(
+        "UPDATE accounts SET history_id = ? WHERE account_id = ?"));
+    query.addBindValue(historyId > 0 ? QVariant::fromValue(historyId) : QVariant());
+    query.addBindValue(accountId);
+    if (!query.exec() || query.numRowsAffected() != 1) {
+        setError(error, QStringLiteral("Cannot record Gmail history position: %1")
                              .arg(query.lastError().text()));
         return false;
     }

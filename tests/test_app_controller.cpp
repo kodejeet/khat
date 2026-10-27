@@ -236,8 +236,8 @@ void TestAppController::initializesIdleWithoutTokensAndStartsAfterTokenAppears()
     QVERIFY(!controller.isWaitingForAuthorization());
     QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 5000);
 
-    QCOMPARE(server.requests.size(), 1);
-    QCOMPARE(server.requests.first().authorization,
+    QCOMPARE(server.syncRequestCount(), 1);
+    QCOMPARE(server.syncRequests().first().authorization,
              QByteArrayLiteral("Bearer test-token"));
     QVERIFY2(controller.stateDatabase()->accountState(QStringLiteral("acct-one"), &state,
                                                        &error),
@@ -272,7 +272,7 @@ void TestAppController::startsAuthorizedAccountAndPreservesBaselineAcrossRestart
         QVERIFY2(controller.initialize(&error), qPrintable(error));
         QVERIFY(controller.scheduler()->isRunning());
         QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 5000);
-        QCOMPARE(server.requests.size(), 1);
+        QCOMPARE(server.syncRequestCount(), 1);
 
         AccountState state;
         QVERIFY2(controller.stateDatabase()->accountState(
@@ -295,7 +295,7 @@ void TestAppController::startsAuthorizedAccountAndPreservesBaselineAcrossRestart
         QSignalSpy finished(controller.scheduler(), &SyncScheduler::checkFinished);
         QVERIFY2(controller.initialize(&error), qPrintable(error));
         QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 5000);
-        QCOMPARE(server.requests.size(), 2);
+        QCOMPARE(server.syncRequestCount(), 2);
 
         AccountState state;
         QVERIFY2(controller.stateDatabase()->accountState(
@@ -406,7 +406,7 @@ void TestAppController::suspendAndResumeRestartsPolling()
     QSignalSpy finished(controller.scheduler(), &SyncScheduler::checkFinished);
     QVERIFY2(controller.initialize(&error), qPrintable(error));
     QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 5000);
-    QCOMPARE(server.requests.size(), 1);
+    QCOMPARE(server.syncRequestCount(), 1);
     QVERIFY(controller.scheduler()->nextCheckEpoch() > 0);
 
     controller.suspend();
@@ -418,7 +418,7 @@ void TestAppController::suspendAndResumeRestartsPolling()
     QVERIFY(!controller.isSuspended());
     QVERIFY(controller.scheduler()->isRunning());
     QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 2, 5000);
-    QCOMPARE(server.requests.size(), 2);
+    QCOMPARE(server.syncRequestCount(), 2);
     controller.shutdown();
 }
 
@@ -459,8 +459,8 @@ void TestAppController::oauthLoadsStoredTokenAndStartsPolling()
     QTRY_VERIFY_WITH_TIMEOUT(controller.scheduler()->isRunning(), 5000);
     QVERIFY(!controller.isWaitingForAuthorization());
     QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 5000);
-    QCOMPARE(server.requests.size(), 1);
-    QCOMPARE(server.requests.first().authorization,
+    QCOMPARE(server.syncRequestCount(), 1);
+    QCOMPARE(server.syncRequests().first().authorization,
              QByteArrayLiteral("Bearer stored-access"));
     QCOMPARE(store->tokens.value(QStringLiteral("acct-one")).accessToken,
              QStringLiteral("stored-access"));
@@ -692,7 +692,7 @@ void TestAppController::oauthInvalidGrantRequiresReauthorization()
         QStringLiteral("accountMessage"));
     QVERIFY(message);
     QVERIFY(!message->isHidden());
-    QVERIFY(message->text().contains(QStringLiteral("requires reauthorization")));
+    QVERIFY(message->text().contains(QStringLiteral("Reauthorize")));
     controller.shutdown();
 }
 

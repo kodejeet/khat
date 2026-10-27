@@ -17,11 +17,14 @@ struct NotificationContent
 };
 
 constexpr int kNotificationSenderLength = 120;
-constexpr int kNotificationSubjectLength = 200;
-constexpr int kNotificationPreviewLength = 180;
+constexpr int kNotificationSubjectLength = 120;
+constexpr int kNotificationPreviewLength = 160;
 
 QString notificationSingleLine(const QString &text);
 QString notificationTruncate(const QString &text, int maxLength);
+// Sentence-aware variant for notification bodies: keeps whole sentences inside
+// the limit and appends "…" only when text was actually cut.
+QString notificationTruncateSentences(const QString &text, int maxLength);
 QString notificationSenderDisplay(const QString &fromHeader);
 QString notificationEscapeMarkup(const QString &text);
 

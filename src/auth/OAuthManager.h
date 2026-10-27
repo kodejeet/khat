@@ -11,6 +11,7 @@
 #include <QList>
 #include <QObject>
 #include <QSet>
+#include <QTimer>
 #include <QUrl>
 
 #include <functional>
@@ -133,7 +134,7 @@ private:
     void handleTokenReceived(const QString &requestId, const OAuthToken &token);
     void handleTokenRevoked(const QString &requestId);
     void handleTokenRequestFailed(const QString &requestId, const OAuthError &error);
-    void handleProfileReady(const QString &email);
+    void handleProfileReady(const QString &email, qint64 historyId);
     void handleProfileError(const GmailError &error);
     void handleTokenLoaded(const QString &accountId, bool found, const OAuthToken &token,
                            const QString &error);
@@ -145,6 +146,11 @@ private:
     void clearAuthorizationRequest();
     void refreshFinished(const QString &accountId, const OAuthToken &token);
     void refreshFailed(const QString &accountId, const OAuthError &error);
+    // Keeps the cached access token fresh: refreshes five minutes before its
+    // known expiry (or immediately when an expired token is loaded) so Gmail
+    // requests never start with a token Google will reject.
+    void scheduleProactiveRefresh(const QString &accountId, int retryDelayMs = 0);
+    void stopProactiveRefresh(const QString &accountId);
     void markReauthorizationRequired(const QString &accountId, const QString &error);
     void startCachedTokenRemoval(const QString &accountId, const OAuthToken &token);
     void deleteStoredToken(const QString &accountId, const QString &warning);
@@ -177,6 +183,8 @@ private:
     std::unique_ptr<AuthorizationFlow> m_flow;
     QHash<QString, RequestContext> m_requests;
     QSet<QString> m_refreshingAccounts;
+    QHash<QString, QTimer *> m_refreshTimers;
+    QHash<QString, int> m_refreshRetryDelayMs;
 
     QSet<QString> m_removalLoadPending;
     QSet<QString> m_removalDeletePending;

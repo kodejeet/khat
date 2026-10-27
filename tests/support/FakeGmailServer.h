@@ -144,4 +144,29 @@ public:
     Handler handler;
     BodyHandler bodyHandler;
     QList<Request> requests;
+
+    // Requests aimed at Gmail data endpoints. After every successful check the
+    // sync flow additionally performs one users/me/profile read to learn a
+    // fresh historyId cursor; poll assertions normally exclude that read.
+    QList<Request> syncRequests() const
+    {
+        QList<Request> result;
+        for (const Request &request : requests) {
+            if (!isProfileRead(request.url)) {
+                result.append(request);
+            }
+        }
+        return result;
+    }
+
+    int syncRequestCount() const
+    {
+        return syncRequests().size();
+    }
+
+private:
+    static bool isProfileRead(const QUrl &url)
+    {
+        return url.path().endsWith(QLatin1String("/users/me/profile"));
+    }
 };

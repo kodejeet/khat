@@ -6,6 +6,8 @@
 #include <QSqlDatabase>
 #include <QString>
 
+// Gmail progress cursor: the highest historyId whose changes the account has
+// already reflected in this database.
 struct AccountState
 {
     QString accountId;
@@ -14,6 +16,7 @@ struct AccountState
     qint64 lastSyncEpoch = 0;
     qint64 lastAttemptEpoch = 0;
     QString lastError;
+    qint64 historyId = 0;
 };
 
 class StateDatabase
@@ -54,6 +57,11 @@ public:
     bool markSyncError(const QString &accountId, qint64 attemptEpoch,
                        const QString &message, QString *error = nullptr);
 
+    // Advances the Gmail history sync cursor for an account. Callers keep this
+    // monotonic; the database stores the given value verbatim.
+    bool setAccountHistoryId(const QString &accountId, qint64 historyId,
+                             QString *error = nullptr);
+
     bool hasSeenMessage(const QString &accountId, const QString &messageId, bool *seen,
                         QString *error = nullptr);
     bool messageWasNotified(const QString &accountId, const QString &messageId,
@@ -65,6 +73,7 @@ public:
 private:
     bool createSchema(QString *error);
     bool checkSchemaVersion(QString *error);
+    bool migrateSchema(int version, QString *error);
     bool exec(const QString &sql, QString *error);
     void setError(QString *error, const QString &message) const;
 

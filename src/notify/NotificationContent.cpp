@@ -44,6 +44,44 @@ QString notificationTruncate(const QString &text, int maxLength)
     return text.left(end).trimmed() + QChar(0x2026);
 }
 
+// Bodies are cut at a sentence boundary when one exists inside the limit, so
+// the notification shows whole sentences and never a floating word. Short
+// snippets pass through untouched: the banner then only ever grows as large as
+// the text behind it.
+QString notificationTruncateSentences(const QString &text, int maxLength)
+{
+    if (maxLength <= 0) {
+        return QString();
+    }
+    if (text.size() <= maxLength) {
+        return text;
+    }
+
+    int cut = -1;
+    for (int i = 0; i < maxLength; ++i) {
+        const QChar character = text.at(i);
+        const bool terminator = character == QLatin1Char('.')
+            || character == QLatin1Char('!')
+            || character == QLatin1Char('?')
+            || character == QChar(0x2026);
+        if (terminator && i + 1 < text.size() && text.at(i + 1).isSpace()) {
+            // Abbreviations such as "U.S. President" do not end in whitespace
+            // after the dot, so they are not treated as sentence breaks.
+            cut = i + 1;
+        }
+    }
+    if (cut > 0) {
+        QString truncated = text.left(cut).trimmed();
+        // A sentence may end on the ellipsis character itself; do not stack
+        // another one right after it.
+        if (!truncated.endsWith(QChar(0x2026))) {
+            truncated.append(QChar(0x2026));
+        }
+        return truncated;
+    }
+    return notificationTruncate(text, maxLength);
+}
+
 QString notificationSenderDisplay(const QString &fromHeader)
 {
     const QString cleaned = notificationSingleLine(fromHeader);
@@ -98,7 +136,7 @@ NotificationContent buildNotificationContent(const MessageSummary &message,
                                                           kNotificationSubjectLength));
 
     if (showPreview) {
-        const QString preview = notificationTruncate(
+        const QString preview = notificationTruncateSentences(
             notificationSingleLine(message.snippet), kNotificationPreviewLength);
         if (!preview.isEmpty()) {
             lines.append(preview);

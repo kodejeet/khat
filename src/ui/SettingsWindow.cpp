@@ -160,9 +160,7 @@ void SettingsWindow::buildUi()
 
     notificationsLayout->addLayout(notificationsForm);
     auto *notificationsHint = new QLabel(
-        QStringLiteral("Changes are saved automatically. The default check interval is "
-                       "180 minutes (3 hours)."),
-        notificationsPage);
+        QStringLiteral("Changes are saved automatically."), notificationsPage);
     notificationsHint->setWordWrap(true);
     notificationsLayout->addWidget(notificationsHint);
     notificationsLayout->addStretch();

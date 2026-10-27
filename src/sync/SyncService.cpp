@@ -48,21 +48,32 @@ struct SyncService::Job
 {
     enum class Stage
     {
+        History,
         Listing,
         Metadata,
+        AwaitingProfile,
     };
 
     SyncAccountRequest request;
     GmailClient *client = nullptr;
+    // History is tried first for accounts past their baseline; Listing handles
+    // baselines and the fallback when a history cursor aged out.
     Stage stage = Stage::Listing;
     bool baseline = false;
+    // Set once the job used users.history.list at least once.
+    bool usedHistory = false;
     qint64 lastSyncEpoch = 0;
+    // Cursor this sync started from; the stored cursor is only advanced to
+    // strictly newer values.
+    qint64 historyStartId = 0;
+    qint64 newestHistoryId = 0;
     QString pageToken;
     QSet<QString> seenPageTokens;
     QList<MessageSummary> listedMessages;
     QSet<QString> listedIds;
     QList<MessageSummary> candidates;
     QList<MessageSummary> fetchedMessages;
+    SyncResult pendingResult;
     int metadataIndex = 0;
     int pagesFetched = 0;
 };
@@ -152,10 +163,20 @@ bool SyncService::syncAccount(const SyncAccountRequest &request, QString *error)
     job->request = request;
     job->baseline = !state.baselineDone;
     job->lastSyncEpoch = state.lastSyncEpoch;
+    // Incremental history is only attempted for completed baselines that have
+    // a stored cursor; everything else falls back to the listing flow.
+    job->historyStartId = job->baseline ? 0 : state.historyId;
+    job->stage = job->historyStartId > 0 ? Job::Stage::History : Job::Stage::Listing;
     job->client = new GmailClient(m_network, this);
     job->client->setAccessToken(request.accessToken);
     job->client->setApiBaseUrl(m_apiBaseUrl);
 
+    connect(job->client, &GmailClient::historyPageReady, this,
+            [this, job](const GmailHistoryPage &page) { handleHistoryPage(job, page); });
+    connect(job->client, &GmailClient::profileReady, this,
+            [this, job](const QString &email, qint64 historyId) {
+                handleProfileReady(job, email, historyId);
+            });
     connect(job->client, &GmailClient::listPageReady, this,
             [this, job](const GmailListPage &page) { handleListPage(job, page); });
     connect(job->client, &GmailClient::messageReady, this,
@@ -164,14 +185,129 @@ bool SyncService::syncAccount(const SyncAccountRequest &request, QString *error)
             [this, job](const GmailError &requestError) {
                 if (job->stage == Job::Stage::Metadata) {
                     handleMetadataError(job, requestError);
+                } else if (job->stage == Job::Stage::History) {
+                    handleHistoryError(job, requestError);
+                } else if (job->stage == Job::Stage::AwaitingProfile) {
+                    // The listing itself already succeeded; only the optional
+                    // cursor capture was lost, so report the real result.
+                    completeJob(job, job->pendingResult);
                 } else {
                     handleListError(job, requestError);
                 }
             });
 
     m_jobs.insert(request.accountId, job);
-    requestNextListPage(job);
+    if (job->stage == Job::Stage::History) {
+        requestNextHistoryPage(job);
+    } else {
+        requestNextListPage(job);
+    }
     return true;
+}
+
+void SyncService::requestNextHistoryPage(Job *job)
+{
+    if (!m_jobs.contains(job->request.accountId)
+        || m_jobs.value(job->request.accountId) != job) {
+        return;
+    }
+
+    job->usedHistory = true;
+    job->stage = Job::Stage::History;
+    job->client->listHistory(job->historyStartId, 500, job->pageToken);
+}
+
+void SyncService::handleHistoryPage(Job *job, const GmailHistoryPage &page)
+{
+    if (!m_jobs.contains(job->request.accountId)
+        || m_jobs.value(job->request.accountId) != job) {
+        return;
+    }
+
+    job->pagesFetched++;
+    if (page.historyId > job->newestHistoryId) {
+        job->newestHistoryId = page.historyId;
+    }
+    for (const MessageSummary &message : page.added) {
+        if (!job->listedIds.contains(message.id)) {
+            job->listedIds.insert(message.id);
+            job->listedMessages.append(message);
+        }
+    }
+
+    if (!page.nextPageToken.isEmpty()) {
+        if (job->pagesFetched >= kMaxPages
+            || job->seenPageTokens.contains(page.nextPageToken)) {
+            failJob(job, GmailErrorKind::InvalidResponse,
+                    QStringLiteral("Gmail history pagination did not terminate."));
+            return;
+        }
+        job->seenPageTokens.insert(page.nextPageToken);
+        job->pageToken = page.nextPageToken;
+        requestNextHistoryPage(job);
+        return;
+    }
+
+    // The change feed is consumed. From here on the flow matches the listing
+    // stage: skip messages the database already knows and fetch metadata for
+    // the rest. No `after:` overlap is needed; history already covers it.
+    for (const MessageSummary &message : job->listedMessages) {
+        bool seen = false;
+        QString databaseError;
+        if (!m_state->hasSeenMessage(job->request.accountId, message.id, &seen,
+                                     &databaseError)) {
+            failJob(job, GmailErrorKind::Internal, databaseError);
+            return;
+        }
+        if (!seen) {
+            job->candidates.append(message);
+        }
+    }
+
+    if (job->candidates.isEmpty()) {
+        const qint64 now = QDateTime::currentSecsSinceEpoch();
+        QString databaseError;
+        if (!m_state->markSyncSuccess(job->request.accountId, now, &databaseError)) {
+            failJob(job, GmailErrorKind::Internal, databaseError);
+            return;
+        }
+
+        SyncResult result;
+        result.accountId = job->request.accountId;
+        result.success = true;
+        result.pagesFetched = job->pagesFetched;
+
+        QString cursorError;
+        if (job->newestHistoryId > job->historyStartId
+            && !m_state->setAccountHistoryId(job->request.accountId, job->newestHistoryId,
+                                             &cursorError)) {
+            failJob(job, GmailErrorKind::Internal, cursorError);
+            return;
+        }
+        completeJob(job, result);
+        return;
+    }
+
+    beginMetadataPhase(job);
+}
+
+void SyncService::handleHistoryError(Job *job, const GmailError &error)
+{
+    if (error.kind == GmailErrorKind::NotFound) {
+        // Google only retains history ids for a limited time (roughly a week
+        // of unreached inbox changes). Restart from a full listing and pick up
+        // a fresh cursor afterwards.
+        job->usedHistory = false;
+        job->historyStartId = 0;
+        job->newestHistoryId = 0;
+        // Listing pagination starts from its own token space.
+        job->pageToken.clear();
+        job->seenPageTokens.clear();
+        job->stage = Job::Stage::Listing;
+        requestNextListPage(job);
+        return;
+    }
+    failJob(job, error.kind, error.message, error.retryAfterSeconds);
 }
 
 void SyncService::requestNextListPage(Job *job)
@@ -217,6 +353,14 @@ void SyncService::handleListPage(Job *job, const GmailListPage &page)
         return;
     }
 
+    continueAfterListing(job);
+}
+
+// A completed listing either baselines the account or selects unseen
+// candidates for the metadata phase. Both endings wait for a profile read so
+// later checks can continue incrementally from a fresh historyId.
+void SyncService::continueAfterListing(Job *job)
+{
     if (job->baseline) {
         const qint64 now = QDateTime::currentSecsSinceEpoch();
         QString databaseError;
@@ -230,7 +374,7 @@ void SyncService::handleListPage(Job *job, const GmailListPage &page)
         result.success = true;
         result.baseline = true;
         result.pagesFetched = job->pagesFetched;
-        completeJob(job, result);
+        captureHistoryCursor(job, result);
         return;
     }
 
@@ -259,11 +403,18 @@ void SyncService::handleListPage(Job *job, const GmailListPage &page)
         result.accountId = job->request.accountId;
         result.success = true;
         result.pagesFetched = job->pagesFetched;
-        completeJob(job, result);
+        captureHistoryCursor(job, result);
         return;
     }
 
     beginMetadataPhase(job);
+}
+
+void SyncService::captureHistoryCursor(Job *job, const SyncResult &result)
+{
+    job->pendingResult = result;
+    job->stage = Job::Stage::AwaitingProfile;
+    job->client->fetchProfile();
 }
 
 void SyncService::handleListError(Job *job, const GmailError &error)
@@ -346,7 +497,42 @@ void SyncService::finalizeMetadata(Job *job)
     if (!inserted.isEmpty()) {
         emit newMessages(job->request.accountId, inserted);
     }
-    completeJob(job, result);
+
+    // Incremental history jobs already know their new cursor; a fallback
+    // listing needs the profile read first.
+    QString cursorError;
+    if (job->usedHistory) {
+        if (job->newestHistoryId > job->historyStartId
+            && !m_state->setAccountHistoryId(job->request.accountId, job->newestHistoryId,
+                                             &cursorError)) {
+            failJob(job, GmailErrorKind::Internal, cursorError);
+            return;
+        }
+        completeJob(job, result);
+        return;
+    }
+    captureHistoryCursor(job, result);
+}
+
+void SyncService::handleProfileReady(Job *job, const QString &email, qint64 historyId)
+{
+    Q_UNUSED(email)
+    if (!m_jobs.contains(job->request.accountId)
+        || m_jobs.value(job->request.accountId) != job) {
+        return;
+    }
+
+    if (historyId > job->historyStartId) {
+        QString databaseError;
+        if (!m_state->setAccountHistoryId(job->request.accountId, historyId,
+                                          &databaseError)) {
+            // The listing already succeeded; losing the cursor only makes the
+            // next check fall back to a full listing again.
+            completeJob(job, job->pendingResult);
+            return;
+        }
+    }
+    completeJob(job, job->pendingResult);
 }
 
 void SyncService::failJob(Job *job, GmailErrorKind kind, const QString &message,

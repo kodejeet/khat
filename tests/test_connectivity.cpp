@@ -115,7 +115,7 @@ void TestConnectivity::offlineDefersChecksAndReconnectSyncs()
 
     monitor.setSimulatedState(ConnectivityMonitor::State::Online);
     QVERIFY2(finished.wait(5000), "reconnect check timed out");
-    QCOMPARE(server.requests.size(), 1);
+    QCOMPARE(server.syncRequestCount(), 1);
     QVERIFY(scheduler.lastResults().first().success);
     QVERIFY(!scheduler.isCheckDeferredForOffline());
     QVERIFY(scheduler.nextCheckEpoch() > 0);
@@ -125,11 +125,11 @@ void TestConnectivity::offlineDefersChecksAndReconnectSyncs()
     QCOMPARE(scheduler.nextCheckEpoch(), 0);
     QVERIFY(!scheduler.checkNow());
     QVERIFY(!scheduler.checkNow());
-    QCOMPARE(server.requests.size(), 1);
+    QCOMPARE(server.syncRequestCount(), 1);
 
     monitor.setSimulatedState(ConnectivityMonitor::State::Online);
     QVERIFY2(finished.wait(5000), "second reconnect check timed out");
-    QCOMPARE(server.requests.size(), 2);
+    QCOMPARE(server.syncRequestCount(), 2);
     QCOMPARE(finished.count(), 2);
 
     scheduler.stop();

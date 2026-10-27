@@ -9,6 +9,7 @@
 #include <QUrl>
 
 class GmailListPage;
+class GmailHistoryPage;
 class GmailClient;
 class QNetworkAccessManager;
 class StateDatabase;
@@ -58,10 +59,29 @@ signals:
 private:
     struct Job;
 
+    // Stage History (incremental) is tried first; Listing is the startup
+    // baseline and fallback; Metadata fetches what neither stage discovered; a
+    // successful Listing waits for a profile read to learn a fresh historyId.
+    enum class Stage
+    {
+        History,
+        Listing,
+        Metadata,
+        AwaitingProfile,
+    };
+
+    void requestNextHistoryPage(Job *job);
+    void handleHistoryPage(Job *job, const GmailHistoryPage &page);
+    void handleHistoryError(Job *job, const GmailError &error);
     void requestNextListPage(Job *job);
     void handleListPage(Job *job, const GmailListPage &page);
     void handleListError(Job *job, const GmailError &error);
+    // Baseline-or-listing tail: selects unseen candidates and either waits for
+    // a profile read or enters the metadata phase.
+    void continueAfterListing(Job *job);
+    void captureHistoryCursor(Job *job, const SyncResult &result);
     void beginMetadataPhase(Job *job);
+    void handleProfileReady(Job *job, const QString &email, qint64 historyId);
     void requestNextMetadata(Job *job);
     void handleMetadata(Job *job, const MessageSummary &message);
     void handleMetadataError(Job *job, const GmailError &error);

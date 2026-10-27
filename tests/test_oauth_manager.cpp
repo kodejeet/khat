@@ -139,6 +139,7 @@ private slots:
     void duplicateEmailReusesExistingAccount();
     void reauthorizeRejectsDifferentAccount();
     void refreshPreservesRefreshAndInvalidGrantRequiresReauth();
+    void expiredLoadedTokenRefreshesBeforeFirstUse();
     void removalRevokesAndDeletesToken();
     void removalIgnoresInFlightRefresh();
     void callbackStateMismatchDoesNotExchangeCode();
@@ -445,6 +446,73 @@ void TestOAuthManager::refreshPreservesRefreshAndInvalidGrantRequiresReauth()
     QVERIFY(!manager.accessToken(accountId, &token));
     QVERIFY(required.first().at(1).toString().contains(QStringLiteral("Reauthorize")));
     QTRY_VERIFY_WITH_TIMEOUT(!store->tokens.contains(accountId), 5000);
+}
+
+// An access token loaded from Secret Service whose lifetime already ended
+// must never reach Gmail: the manager refreshes it proactively (and never
+// hands the stale token out in the meantime), which is what removes the
+// guaranteed HTTP 401 on the first request after a long sleep or restart.
+void TestOAuthManager::expiredLoadedTokenRefreshesBeforeFirstUse()
+{
+    FakeGmailServer server;
+    QVERIFY(server.start());
+    server.bodyHandler = [](const QUrl &url, const QByteArray &,
+                            const QByteArray &body) {
+        if (url.path() == QStringLiteral("/token")
+            && formBody(body).queryItemValue(QStringLiteral("grant_type"))
+                == QStringLiteral("refresh_token")) {
+            return FakeGmailServer::Response{
+                200, tokenResponse(QByteArrayLiteral("access-proactive"), QByteArray())};
+        }
+        return FakeGmailServer::Response{404, QByteArrayLiteral("{}")};
+    };
+
+    QNetworkAccessManager network;
+    auto storeOwner = std::make_unique<FakeOAuthTokenStore>();
+    auto *store = storeOwner.get();
+    const QString accountId = QStringLiteral("account-one");
+    OAuthToken expired =
+        storedToken(QStringLiteral("access-stale"), QStringLiteral("refresh-old"));
+    expired.expiresAt = QDateTime::currentDateTimeUtc().addSecs(-30);
+    store->tokens.insert(accountId, expired);
+    OAuthManager manager(std::move(storeOwner), &network);
+    QVERIFY(manager.setOAuthClientConfig(testClientConfig(server.apiBaseUrl().resolved(
+        QUrl(QStringLiteral("/"))))));
+    manager.setGmailApiBaseUrl(server.apiBaseUrl());
+    manager.setAccounts({account(accountId, QStringLiteral("user@example.com"))});
+
+    QSignalSpy initial(&manager, &OAuthManager::initialTokenLoadFinished);
+    QSignalSpy refreshed(&manager, &OAuthManager::tokenRefreshed);
+    QSignalSpy refreshFailed(&manager, &OAuthManager::tokenRefreshFailed);
+    QSignalSpy required(&manager, &OAuthManager::authorizationRequired);
+
+    bool staleTokenRefusedAtLoad = false;
+    connect(&manager, &OAuthManager::initialTokenLoadFinished, &manager, [&] {
+        QString loaded;
+        staleTokenRefusedAtLoad =
+            !manager.accessToken(accountId, &loaded) && loaded.isEmpty();
+    });
+    manager.loadTokens();
+
+    QTRY_COMPARE_WITH_TIMEOUT(initial.count(), 1, 5000);
+    QVERIFY(staleTokenRefusedAtLoad);
+
+    QTRY_COMPARE_WITH_TIMEOUT(refreshed.count(), 1, 5000);
+    QCOMPARE(refreshFailed.count(), 0);
+    QCOMPARE(required.count(), 0);
+
+    QString token;
+    QVERIFY(manager.accessToken(accountId, &token));
+    QCOMPARE(token, QStringLiteral("access-proactive"));
+    QTRY_VERIFY_WITH_TIMEOUT(store->tokens.value(accountId).accessToken
+                                 == QStringLiteral("access-proactive"),
+                             5000);
+    QCOMPARE(store->tokens.value(accountId).refreshToken,
+             QStringLiteral("refresh-old"));
+
+    // Exactly one token exchange happened: the proactive timer now waits for
+    // the fresh token's own expiry instead of looping.
+    QCOMPARE(server.requests.size(), 1);
 }
 
 void TestOAuthManager::removalRevokesAndDeletesToken()
