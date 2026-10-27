@@ -1,0 +1,92 @@
+.TH KHAT 1 "October 2026" "khat 0.1.0" "User commands"
+.SH NAME
+khat \- native Gmail notifications for GNOME
+.SH SYNOPSIS
+.B khat
+[\fB\-s\fP | \fB\-\-settings\fP]
+.br
+.B khat
+[\fB\-b\fP | \fB\-\-background\fP]
+.br
+.B khat
+[\fB\-c\fP | \fB\-\-check\-now\fP]
+.br
+.B khat
+[\fB\-h\fP | \fB\-\-help\fP] | [\fB\-V\fP | \fB\-\-version\fP]
+.SH DESCRIPTION
+.B khat
+watches Gmail and raises a native GNOME desktop notification for new inbox
+messages. Checks run on a quiet schedule (three hours by default,
+configurable between 5 minutes and 24 hours) and read Gmail's incremental
+history feed, so a manual or scheduled check surfaces fresh mail immediately
+without waiting for search-index updates. Only message metadata (sender,
+subject, short preview) is downloaded; bodies and attachments are never
+fetched. OAuth tokens are kept in the GNOME Keyring, and the access scope is
+read-only ( gmail.readonly ). khat sends no telemetry; its only network
+traffic goes to Google's OAuth and Gmail endpoints.
+.PP
+Exactly one instance runs at a time. A later launch forwards the request to
+the running instance and exits.
+.SH OPTIONS
+.TP
+.BR \-s ", " \%\-\-settings
+Open the settings window. This is the default when no mode is given. Closing
+the window does not stop background checks; the window can be reopened with a
+later launch or from a notification.
+.TP
+.BR \-b ", " \%\-\-background
+Run without a window. This is the mode the
+.B khat.service
+systemd user unit starts; see
+.BR "systemctl \-\-user" .
+.TP
+.BR \-c ", " \%\-\-check\-now
+Ask the already-running instance to check for new mail immediately and exit.
+.TP
+.BR \-h ", " \%\-\-help
+Print a usage summary and exit.
+.TP
+.BR \-V ", " \%\-\-version
+Print the application version and exit.
+.SH KEYBOARD
+.TP
+.B Ctrl+Q
+Quit the application from the settings window, stopping background checks the
+same way a
+.B SIGTERM
+does.
+.SH FILES
+.TP
+.I ~/.config/khat/config.json
+Accounts and notification settings (written atomically by the settings
+window).
+.TP
+.I ~/.config/khat/oauth-client.json
+Google OAuth \fIdesktop client\fP credentials; mode 0600. See
+.UR https://github.com/kodejeet/khat
+.UE ,
+docs/google-oauth-setup.md, for how to obtain it.
+.TP
+.I ~/.local/share/khat/state.db
+SQLite state: seen message ids, per-account history cursor, timestamps. No
+message content is stored.
+.TP
+.I ~/.local/share/systemd/user/khat.service
+The systemd user unit used for login autostart.
+.SH EXIT STATUS
+.B khat
+exits 1 when an option is refused or the single instance cannot be reached.
+.SH SEE ALSO
+.BR systemctl (1),
+.BR systemd.unit (5),
+.BR notify-send (1)
+.PP
+Documentation, installation instructions, and the source code are available
+at \c
+.UR https://github.com/kodejeet/khat
+.UE .
+.\" The in-repository docs cover installation (docs/installation.md), the
+.\" Gmail API setup (docs/google-oauth-setup.md), and troubleshooting
+.\" (docs/operations.md); the man page archives the essentials.
+.SH LICENSE
+GNU General Public License version 3 or later (GPL-3.0-or-later).

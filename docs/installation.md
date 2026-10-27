@@ -89,6 +89,8 @@ The default per-user installation creates:
 - `~/.local/share/systemd/user/khat.service`
 - `~/.local/share/icons/hicolor/<size>x<size>/apps/khat.png` for
   16, 22, 24, 32, 48, 64, 128, 256, and 512 pixel icons
+- `~/.local/share/man/man1/khat.1`, the `khat(1)` manual page (`man khat`,
+  `whatis khat`)
 
 The desktop entry and notifications use the icon name `khat`, which
 resolves through the hicolor theme. The source artwork and the Windows `.ico`
@@ -170,6 +172,13 @@ The service runs `khat --background` after
 on failure. It does not require root. The desktop menu entry can be used at the
 same time; the second process forwards a request to the running service instead
 of creating a duplicate notifier.
+
+khat is a **user service, not a system one**: it runs inside your graphical
+session with your user's permissions (so it can read the GNOME Keyring) and is
+therefore managed without `sudo`. `systemctl --user status khat` shows its
+state, while `sudo systemctl status khat` reports `Unit khat.service could not
+be found` by design — there is no root system unit, and there is no reason for
+a notifier to have one.
 
 Useful commands:
 

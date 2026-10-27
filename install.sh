@@ -123,6 +123,12 @@ if [ -x "$(command -v gtk-update-icon-cache || true)" ] \
     && [ -d "$PREFIX/share/icons/hicolor" ]; then
     gtk-update-icon-cache -qtf "$PREFIX/share/icons/hicolor" 2>/dev/null || true
 fi
+# Index the installed manual page so `whatis khat` / `man khat` work.
+# Run as the user; man-db (>= 2.9) adds ~/.local/share/man to the user
+# manpath automatically once the directory exists.
+if [ -d "$PREFIX/share/man/man1" ] && command -v mandb >/dev/null 2>&1; then
+    mandb -q 2>/dev/null || true
+fi
 
 # ---------------------------------------------------------------------------
 # 5. Enable the systemd user service so khat starts at login.

@@ -147,6 +147,12 @@ install(FILES ${KHAT_DATA_DIR}/khat.service
     DESTINATION ${CMAKE_INSTALL_DATADIR}/systemd/user
 )
 
+# Manual page: ${CMAKE_INSTALL_MANDIR}/man1 resolves to share/man/man1 within
+# the per-user prefix, so the page lands in ~/.local/share/man/man1.
+install(FILES data/khat.1
+    DESTINATION ${CMAKE_INSTALL_MANDIR}/man1
+)
+
 set(KHAT_ICON_SIZES 16 22 24 32 48 64 128 256 512)
 foreach(icon_size IN LISTS KHAT_ICON_SIZES)
     install(FILES

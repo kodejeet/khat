@@ -62,6 +62,7 @@ rm -fv "$PREFIX/share/systemd/user/khat.service"
 for size in $SIZES; do
     rm -fv "$PREFIX/share/icons/hicolor/${size}x${size}/apps/khat.png"
 done
+rm -fv "$PREFIX/share/man/man1/khat.1"
 
 if [ -x "$(command -v update-desktop-database || true)" ] \
     && [ -d "$PREFIX/share/applications" ]; then
@@ -70,6 +71,9 @@ fi
 if [ -x "$(command -v gtk-update-icon-cache || true)" ] \
     && [ -d "$PREFIX/share/icons/hicolor" ]; then
     gtk-update-icon-cache -qtf "$PREFIX/share/icons/hicolor" 2>/dev/null || true
+fi
+if command -v mandb >/dev/null 2>&1; then
+    mandb -q 2>/dev/null || true
 fi
 
 systemctl --user daemon-reload >/dev/null 2>&1 || true
