@@ -5,7 +5,9 @@
 #include "sync/SyncService.h"
 #include "ui/SettingsWindow.h"
 
+#include <QAction>
 #include <QCheckBox>
+#include <QKeySequence>
 #include <QLabel>
 #include <QNetworkAccessManager>
 #include <QPushButton>
@@ -24,6 +26,7 @@ private slots:
     void accountSignalsAndRemoval();
     void authorizationBusyAndMessages();
     void statusReflectsSchedulerAndConnectivity();
+    void quitShortcutRequestsQuit();
 };
 
 static bool openDatabase(StateDatabase &db)
@@ -305,6 +308,31 @@ void TestSettingsWindow::statusReflectsSchedulerAndConnectivity()
     scheduler.stop();
     QCOMPARE(nextCheck->text(), QStringLiteral("Not scheduled"));
     QVERIFY(!checkNow->isEnabled());
+}
+
+void TestSettingsWindow::quitShortcutRequestsQuit()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    ConfigStore store(dir.filePath(QStringLiteral("config.json")));
+    QString error;
+    QVERIFY2(store.load(&error), qPrintable(error));
+
+    StateDatabase db(dir.filePath(QStringLiteral("state.db")));
+    QVERIFY2(openDatabase(db), "cannot open state database");
+
+    SettingsWindow window(&store, &db);
+
+    auto *quitAction = window.findChild<QAction *>(QStringLiteral("quitAction"));
+    QVERIFY2(quitAction, "settings window is missing the quit action");
+
+    // The shortcut must be the platform's standard application-quit
+    // sequence, which is Ctrl+Q on Linux.
+    QCOMPARE(quitAction->shortcut(), QKeySequence(QKeySequence::Quit));
+
+    QSignalSpy spy(&window, &SettingsWindow::quitRequested);
+    quitAction->trigger();
+    QCOMPARE(spy.count(), 1);
 }
 
 QTEST_MAIN(TestSettingsWindow)

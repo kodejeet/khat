@@ -12,6 +12,7 @@
 
 #include <QDateTime>
 #include <QDebug>
+#include <QGuiApplication>
 
 #include <utility>
 
@@ -636,6 +637,12 @@ bool AppController::showSettings()
                 &AppController::requestReauthorizeAccount);
         connect(m_settingsWindow, &SettingsWindow::accountRemoved, this,
                 &AppController::handleAccountRemoval);
+        // Ctrl+Q quits the whole application: stop the background work first
+        // so the shutdown path is the regular one, then leave the event loop.
+        connect(m_settingsWindow, &SettingsWindow::quitRequested, this, [this] {
+            shutdown();
+            qGuiApp->quit();
+        });
     }
 
     if (m_oauthManager) {

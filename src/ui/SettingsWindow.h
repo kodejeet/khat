@@ -44,6 +44,9 @@ signals:
     void reauthorizeAccountRequested(const QString &accountId);
     void accountRemoved(const QString &accountId);
 
+    // Emitted for the standard application quit shortcut (Ctrl+Q).
+    void quitRequested();
+
 private slots:
     void saveNotificationSettings();
     void refreshAccounts();
@@ -55,6 +58,7 @@ private slots:
 
 private:
     void buildUi();
+    void installQuitShortcut();
     void populateNotifications();
     void populateAccounts();
     QString selectedAccountId() const;

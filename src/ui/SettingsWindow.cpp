@@ -5,6 +5,7 @@
 #include "state/StateDatabase.h"
 #include "sync/SyncScheduler.h"
 
+#include <QAction>
 #include <QApplication>
 #include <QCheckBox>
 #include <QDateTime>
@@ -13,6 +14,7 @@
 #include <QHBoxLayout>
 #include <QHash>
 #include <QHeaderView>
+#include <QKeySequence>
 #include <QLabel>
 #include <QLocale>
 #include <QMessageBox>
@@ -60,9 +62,23 @@ SettingsWindow::SettingsWindow(ConfigStore *config, StateDatabase *state, QWidge
     setMinimumSize(620, 440);
     resize(700, 500);
     buildUi();
+    installQuitShortcut();
     populateNotifications();
     populateAccounts();
     refreshStatus();
+}
+
+// The standard application quit shortcut (Ctrl+Q on Linux) is registered as a
+// window-level action so it is active whenever the settings window has focus.
+// The placeholder name makes the action findable in tests.
+void SettingsWindow::installQuitShortcut()
+{
+    auto *quitAction = new QAction(this);
+    quitAction->setObjectName(QStringLiteral("quitAction"));
+    quitAction->setShortcut(QKeySequence(QKeySequence::Quit));
+    quitAction->setToolTip(QStringLiteral("Quit khat (stops background checks)"));
+    connect(quitAction, &QAction::triggered, this, &SettingsWindow::quitRequested);
+    addAction(quitAction);
 }
 
 void SettingsWindow::buildUi()
