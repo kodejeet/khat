@@ -208,6 +208,11 @@ void AppController::setupOAuth()
         m_oauthInitialLoadPending = false;
         applyConfiguration(m_config.config());
         logAccountState();
+        if (m_checkAfterInitialLoad) {
+            m_checkAfterInitialLoad = false;
+            QString ignored;
+            checkNow(&ignored);
+        }
     });
     connect(manager, &OAuthManager::tokenCacheChanged, this, [this] {
         if (m_initialized && !m_oauthInitialLoadPending) {
@@ -582,8 +587,12 @@ bool AppController::checkNow(QString *message)
         return false;
     }
     if (m_oauthInitialLoadPending) {
-        setMessage(QStringLiteral("Saved Google authorizations are still loading."));
-        return false;
+        // Tokens load asynchronously from Secret Service; do not refuse the
+        // request, run it as soon as the load completes.
+        m_checkAfterInitialLoad = true;
+        setMessage(QStringLiteral("Gmail check will run as soon as the saved "
+                                  "authorizations finish loading."));
+        return true;
     }
     if (m_accountRequests.isEmpty()) {
         setMessage(QStringLiteral("No authorized accounts are available. Add or "

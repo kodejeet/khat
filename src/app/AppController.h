@@ -119,6 +119,7 @@ private:
     bool m_initialized = false;
     bool m_suspended = false;
     bool m_checkAfterCurrent = false;
+    bool m_checkAfterInitialLoad = false;
     bool m_oauthConnected = false;
     bool m_oauthInitialLoadPending = false;
 };

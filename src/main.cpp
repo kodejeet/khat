@@ -167,8 +167,18 @@ LaunchOutcome launchDetachedBackground(const QString &socketPath, QString *messa
                 ::dup2(descriptors[1], 3);
             }
             ::setenv(kReadinessFdEnv, "3", 1);
-            char *const arguments[] = {const_cast<char *>("khat"), nullptr};
-            ::execv("/proc/self/exe", arguments);
+            // Execute the resolved binary (not /proc/self/exe: the kernel
+            // derives the process name from the executed path, and "exe"
+            // would make pgrep/ps/pkill unable to find the daemon).
+            const QByteArray selfPath =
+                QCoreApplication::applicationFilePath().toLocal8Bit();
+            QByteArray selfName =
+                QFileInfo(selfPath.constData()).fileName().toLocal8Bit();
+            // Re-run with the same mode: without this argument the new
+            // process would default to the settings window.
+            char *const arguments[] = {selfName.data(),
+                                       const_cast<char *>("--background"), nullptr};
+            ::execv(selfPath.constData(), arguments);
             _exit(127);
         }
         _exit(daemon < 0 ? 126 : 0);
