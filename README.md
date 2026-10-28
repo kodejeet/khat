@@ -1,7 +1,7 @@
 <h1 align="center">khat</h1>
 
 <p align="center">
-  <img src="assets/icons/icon.png" alt="khat icon" width="140" />
+  <img src="assets/icons/icon-square.png" alt="khat icon" width="140" />
 </p>
 
 <p align="center"><b>Know your inbox without opening a browser.</b> khat sits
