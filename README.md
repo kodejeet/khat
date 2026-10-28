@@ -20,6 +20,7 @@ instead of waiting for the search index to catch up.</p>
 </p>
 
 <p align="center">
+  <a href="https://github.com/kodejeet/khat/releases"><img src="https://img.shields.io/github/v/release/kodejeet/khat" alt="Release: v0.1.0"></a>
   <a href="#license"><img src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg" alt="License: GPL-3.0-or-later"></a>
   <img src="https://img.shields.io/badge/platform-Linux%20GNOME-blue.svg" alt="Platform: Linux GNOME">
   <img src="https://img.shields.io/badge/Qt-6.5%2B-41CD52.svg" alt="Qt 6.5 or newer">
