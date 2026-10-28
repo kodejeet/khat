@@ -6,10 +6,13 @@ khat \- ख़त (letter) \- native Gmail notifications for GNOME
 [\fB\-s\fP | \fB\-\-settings\fP]
 .br
 .B khat
-[\fB\-b\fP | \fB\-\-background\fP]
+[\fB\-b\fP | \fB\-\-background\fP] [\fB\-\-foreground\fP]
 .br
 .B khat
 [\fB\-c\fP | \fB\-\-check\-now\fP]
+.br
+.B khat
+[\fB\-e\fP | \fB\-\-exit\fP]
 .br
 .B khat
 [\fB\-h\fP | \fB\-\-help\fP] | [\fB\-V\fP | \fB\-\-version\fP]
@@ -35,13 +38,29 @@ the window does not stop background checks; the window can be reopened with a
 later launch or from a notification.
 .TP
 .BR \-b ", " \%\-\-background
-Run without a window. This is the mode the
-.B khat.service
-systemd user unit starts; see
-.BR "systemctl \-\-user" .
+Run without a window. When started by hand the process detaches from the
+terminal: a readiness check confirms the daemon took over and the prompt
+returns with
+.BR "khat is running in the background (PID …)" .
+The systemd user unit runs
+.B khat \-\-background \-\-foreground
+instead (or set
+.BR \%\-\-foreground
+yourself to keep the process in the foreground terminal for debugging).
 .TP
 .BR \-c ", " \%\-\-check\-now
 Ask the already-running instance to check for new mail immediately and exit.
+.TP
+.BR \-e ", " \%\-\-exit
+Stop every khat process of the current user. The running instance is asked to
+quit through the regular shutdown sequence (like
+.B Ctrl+Q
+or
+.BR SIGTERM );
+any process that cannot be reached through the single-instance socket is
+terminated. If the instance belongs to the systemd user unit, the unit shows
+as inactive afterwards and can be started again with
+.BR "systemctl \-\-user start khat" .
 .TP
 .BR \-h ", " \%\-\-help
 Print a usage summary and exit.

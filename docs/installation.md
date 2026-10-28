@@ -142,11 +142,19 @@ the existing process to show its window instead of starting another scheduler.
 Other modes:
 
 ```sh
-# Windowless process, used by the systemd user service
+# Detached background process; the terminal returns immediately once the
+# daemon has taken over. If a khat instance is already running this is a
+# no-op and prints its PID.
 khat --background
+
+# Foreground variant for debugging (this is how the systemd unit runs it)
+khat --background --foreground
 
 # Request an immediate check from the running process
 khat --check-now
+
+# Stop every khat process of this user (same shutdown path as Ctrl+Q)
+khat --exit
 
 khat --version
 ```

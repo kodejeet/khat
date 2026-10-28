@@ -138,6 +138,8 @@ if [ "$ENABLE_SYSTEMD" = 1 ] && command -v systemctl >/dev/null 2>&1; then
         && systemctl --user daemon-reload >/dev/null 2>&1 \
         && systemctl --user enable --now khat.service >/dev/null 2>&1; then
         log "Enabled and started the khat systemd user service"
+        # A previous installation may already be running with the old unit.
+        systemctl --user try-restart khat.service >/dev/null 2>&1 || true
     else
         warn "Systemd user service could not be enabled (headless session?)."
         warn "Start khat manually instead:   $PREFIX/bin/khat --background"

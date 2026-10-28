@@ -5,7 +5,7 @@ PartOf=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/khat --background
+ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/khat --background --foreground
 Restart=on-failure
 RestartSec=5s
 TimeoutStopSec=10s

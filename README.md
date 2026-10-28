@@ -120,8 +120,9 @@ detail: [docs/google-oauth-setup.md](docs/google-oauth-setup.md).
 
 ```sh
 khat --settings     # open the settings window (safe to close; polling continues)
-khat --background   # run as the background notifier (what the systemd unit does)
+khat --background   # run as the background notifier (detaches; systemd unit uses --foreground)
 khat --check-now    # tell a running instance to check and notify immediately
+khat --exit         # stop all khat instances of the current user
 ```
 
 Only one instance runs at a time; a second launch forwards to the first.
