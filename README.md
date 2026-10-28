@@ -71,7 +71,7 @@ curl -fsSL https://github.com/kodejeet/khat/raw/main/install.sh | bash
 - Git checkout alternative:
 
   ```sh
-  git clone https://github.com/kodejeet/khat.git khat
+  git clone https://github.com/kodejeet/khat.git
   cd khat
   ./install.sh
   ```
